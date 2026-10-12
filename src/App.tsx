@@ -112,7 +112,7 @@ export default function App() {
     setUrl("");
     setNote("");
     setShowAdd(false);
-    setNotice("Link berhasil disimpan. Piko ikut senang!");
+    setNotice("Link berhasil disimpan. Tiko ikut senang!");
     setSavedView(true);
     window.setTimeout(() => setNotice(""), 3000);
   }
@@ -139,7 +139,10 @@ export default function App() {
         <main>
           <section className="hero">
             <div className="mascot-stage">
-              <Mascot mood="happy" />
+              <Mascot
+                mood="happy"
+                speech="Cuit! Ada link menarik? Simpan di sarang dulu, ya."
+              />
             </div>
           </section>
 
@@ -195,7 +198,7 @@ export default function App() {
             </div>
             <div className="stat-card encouragement">
               <div>
-                <span className="mini-label">PESAN DARI PIKO</span>
+                <span className="mini-label">PESAN DARI TIKO</span>
                 <p>Pelan-pelan aja. Ide bagus layak disimpan. 🌱</p>
               </div>
               <Mascot mood="peek" small />

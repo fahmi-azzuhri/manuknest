@@ -52,15 +52,17 @@
 
 .topbar{justify-content:center}
 .hero{display:block;min-height:0;padding:18px 0 12px}
-.mascot-stage{height:340px}
+.mascot-stage{height:400px}
+.mascot-speech{position:absolute;z-index:2;bottom:0;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 16px);margin:0;padding:12px 17px;background:#fffdf8;border:1px solid #e9e6dc;border-radius:16px;color:#3d4438;font-size:13px;line-height:1.5;text-align:center;box-shadow:0 4px 14px #43452d0a}
+.mascot-speech:after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:#fffdf8;border-right:1px solid #e9e6dc;border-bottom:1px solid #e9e6dc;transform:translateX(-50%) rotate(45deg)}
 .hero .mascot-wrap{width:300px;height:290px}
 .hero .tiko .mascot-shadow{width:190px;height:16px;bottom:10px;background:#aaa998;filter:blur(4px);opacity:.8}
 @media(max-width:700px){
   .hero{min-height:0;padding:10px 0 12px}
-  .mascot-stage{height:290px}
+  .mascot-stage{height:365px}
   .hero .mascot-wrap{width:250px;height:240px}
 }
 @media(max-width:420px){
-  .mascot-stage{height:250px}
+  .mascot-stage{height:350px}
   .hero .mascot-wrap{width:215px;height:205px}
 }

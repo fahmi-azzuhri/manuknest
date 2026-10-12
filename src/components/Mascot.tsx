@@ -11,7 +11,7 @@ const IMG = {
 const FLY_ASPECT = 360 / 394 // tinggi / lebar frame terbang
 
 // `mood` dipertahankan supaya pemakaian lama <Mascot mood="..."/> tidak error.
-type Props = { mood?: 'happy' | 'sleepy' | 'peek'; small?: boolean }
+type Props = { mood?: 'happy' | 'sleepy' | 'peek'; small?: boolean; speech?: string }
 type Phase = 'nest' | 'flying' | 'landed'
 type Origin = { x: number; y: number; w: number; h: number }
 type Flyer = Origin
@@ -84,7 +84,7 @@ function buildKeyframes(o: Origin): Keyframe[] {
   })
 }
 
-export default function Mascot({ small = false }: Props) {
+export default function Mascot({ small = false, speech }: Props) {
   const [phase, setPhase] = useState<Phase>('nest')
   const [flyer, setFlyer] = useState<Flyer | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -171,6 +171,7 @@ export default function Mascot({ small = false }: Props) {
           </svg>
         </div>
       </div>
+      {speech && phase !== 'flying' && <p className="mascot-speech">{speech}</p>}
 
       {/* Tiko terbang bebas di layar (di luar kontainer supaya tidak ter-clip) */}
       {flyer &&
