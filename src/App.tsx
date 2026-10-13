@@ -141,6 +141,7 @@ export default function App() {
             <div className="mascot-stage">
               <Mascot
                 mood="happy"
+                savedCount={links.length}
                 speech="Cuit! Ada link menarik? Simpan di sarang dulu, ya."
               />
             </div>

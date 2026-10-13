@@ -5,13 +5,14 @@ import { createPortal } from 'react-dom'
 const IMG = {
   nest: '/tiko/nest-idle.webp', // Tiko diam di sarang
   nestEmpty: '/tiko/nest-empty.webp', // sarang kosong (saat Tiko terbang)
+  nestFront: '/tiko/nest-front.webp',
   fly1: '/tiko/fly-1.webp', // sayap naik
   fly2: '/tiko/fly-2.webp', // sayap turun
 }
 const FLY_ASPECT = 360 / 394 // tinggi / lebar frame terbang
 
 // `mood` dipertahankan supaya pemakaian lama <Mascot mood="..."/> tidak error.
-type Props = { mood?: 'happy' | 'sleepy' | 'peek'; small?: boolean; speech?: string }
+type Props = { mood?: 'happy' | 'sleepy' | 'peek'; small?: boolean; speech?: string; savedCount?: number }
 type Phase = 'nest' | 'flying' | 'landed'
 type Origin = { x: number; y: number; w: number; h: number }
 type Flyer = Origin
@@ -84,7 +85,8 @@ function buildKeyframes(o: Origin): Keyframe[] {
   })
 }
 
-export default function Mascot({ small = false, speech }: Props) {
+export default function Mascot({ small = false, speech, savedCount }: Props) {
+  const hasTiko = savedCount === undefined || savedCount >= 3
   const [phase, setPhase] = useState<Phase>('nest')
   const [flyer, setFlyer] = useState<Flyer | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -150,25 +152,37 @@ export default function Mascot({ small = false, speech }: Props) {
   return (
     <>
       <div
-        className={`mascot-wrap tiko ${small ? 'mascot-small' : ''} is-${phase}`}
-        role="button"
-        tabIndex={0}
-        aria-label="Tiko, burung kecil di sarang. Klik untuk membuatnya terbang."
-        onClick={fly}
-        onKeyDown={onKey}
+        className={`mascot-wrap tiko ${small ? 'mascot-small' : ''} is-${phase}${hasTiko ? '' : ' is-egg'}`}
+        role={hasTiko ? 'button' : 'img'}
+        tabIndex={hasTiko ? 0 : undefined}
+        aria-label={hasTiko
+          ? 'Tiko, burung kecil di sarang. Klik untuk membuatnya terbang.'
+          : `Telur di sarang, ${savedCount} link tersimpan.`}
+        onClick={hasTiko ? fly : undefined}
+        onKeyDown={hasTiko ? onKey : undefined}
       >
         <div className="mascot-shadow" />
         <div ref={boxRef} className="tk-box">
-          <img className="tk-nest" src={phase === 'flying' ? IMG.nestEmpty : IMG.nest} alt="" draggable={false} />
-          {/* kedip: kelopak menutup mata, dilukis di atas mata terbuka */}
-          <svg className="tk-blink" viewBox="0 0 430 358" aria-hidden="true">
-            <ellipse cx="196.6" cy="177" rx="14" ry="18" fill="#f8efdd" />
-            <ellipse cx="288" cy="164.6" rx="14" ry="18" fill="#f8efdd" />
-            <path d="M184 181 Q196.6 190 209 181 M276 169 Q288 178 300 169" fill="none" stroke="#3b2b24" strokeWidth="4.5" strokeLinecap="round" />
-          </svg>
-          <svg className="tk-heart" viewBox="-16 -12 32 28" aria-hidden="true">
-            <path d="M0 -2 C-6 -10 -15 -2 0 9 C15 -2 6 -10 0 -2Z" fill="#e8806f" />
-          </svg>
+          {hasTiko ? (
+            <>
+              <img className="tk-nest" src={phase === 'flying' ? IMG.nestEmpty : IMG.nest} alt="" draggable={false} />
+              {/* kedip: kelopak menutup mata, dilukis di atas mata terbuka */}
+              <svg className="tk-blink" viewBox="0 0 430 358" aria-hidden="true">
+                <ellipse cx="196.6" cy="177" rx="14" ry="18" fill="#f8efdd" />
+                <ellipse cx="288" cy="164.6" rx="14" ry="18" fill="#f8efdd" />
+                <path d="M184 181 Q196.6 190 209 181 M276 169 Q288 178 300 169" fill="none" stroke="#3b2b24" strokeWidth="4.5" strokeLinecap="round" />
+              </svg>
+              <svg className="tk-heart" viewBox="-16 -12 32 28" aria-hidden="true">
+                <path d="M0 -2 C-6 -10 -15 -2 0 9 C15 -2 6 -10 0 -2Z" fill="#e8806f" />
+              </svg>
+            </>
+          ) : (
+            <>
+              <img className="tk-nest" src={IMG.nestEmpty} alt="" draggable={false} />
+              <div className="tk-egg" aria-hidden="true" />
+              <img className="tk-nest tk-nest-front" src={IMG.nestFront} alt="" draggable={false} />
+            </>
+          )}
         </div>
       </div>
       {speech && phase !== 'flying' && <p className="mascot-speech">{speech}</p>}

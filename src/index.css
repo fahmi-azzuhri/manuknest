@@ -66,3 +66,6 @@
   .mascot-stage{height:350px}
   .hero .mascot-wrap{width:215px;height:205px}
 }
+.tk-egg{position:absolute;z-index:2;top:24%;left:50%;width:34%;aspect-ratio:.8;transform:translateX(-50%);border:1px solid #bba47b;border-radius:50% 50% 46% 46% / 38% 38% 62% 62%;background-color:#f4efdf;background-image:radial-gradient(ellipse at 28% 25%,#fffdf2 0 8%,transparent 9%),radial-gradient(ellipse at 69% 52%,#d9c9a8 0 4%,transparent 5%),radial-gradient(ellipse at 36% 69%,#ddcfb2 0 3%,transparent 4%);box-shadow:inset 5px 2px 9px #fffdf2a8,inset -5px -6px 9px #9b78401f,0 3px 5px #30271924}
+.tk-nest-front{z-index:3}
+.tiko.is-egg{cursor:default}
