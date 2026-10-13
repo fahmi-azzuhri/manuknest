@@ -179,7 +179,60 @@ export default function Mascot({ small = false, speech, savedCount }: Props) {
           ) : (
             <>
               <img className="tk-nest" src={IMG.nestEmpty} alt="" draggable={false} />
-              <div className="tk-egg" aria-hidden="true" />
+              <svg className="tk-egg" viewBox="0 0 100 125" aria-hidden="true">
+                <defs>
+                  <linearGradient id="egg-shell" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#f4e8ce" />
+                    <stop offset="1" stopColor="#d6bd98" />
+                  </linearGradient>
+                  <clipPath id="egg-shape">
+                    <path d="M50 4 C68 4 80 19 87 42 C95 68 95 91 85 108 C77 120 65 123 50 123 C35 123 23 120 15 108 C5 91 5 68 13 42 C20 19 32 4 50 4Z" />
+                  </clipPath>
+                </defs>
+                <path
+                  d="M50 4 C68 4 80 19 87 42 C95 68 95 91 85 108 C77 120 65 123 50 123 C35 123 23 120 15 108 C5 91 5 68 13 42 C20 19 32 4 50 4Z"
+                  fill="url(#egg-shell)"
+                  stroke="#aa8d67"
+                  strokeWidth="2"
+                />
+                <g clipPath="url(#egg-shape)" fill="#604735">
+                  <ellipse cx="32" cy="29" rx="1.4" ry="2.4" transform="rotate(28 32 29)" />
+                  <ellipse cx="57" cy="24" rx="1.2" ry="2" transform="rotate(-24 57 24)" />
+                  <ellipse cx="73" cy="38" rx="2" ry="3.2" transform="rotate(34 73 38)" />
+                  <ellipse cx="45" cy="43" rx="1.6" ry="2.5" transform="rotate(-35 45 43)" />
+                  <ellipse cx="23" cy="51" rx="2.2" ry="3.8" transform="rotate(18 23 51)" />
+                  <ellipse cx="61" cy="49" rx="1.1" ry="1.8" />
+                  <ellipse cx="81" cy="59" rx="1.6" ry="2.8" transform="rotate(-22 81 59)" />
+                  <ellipse cx="37" cy="62" rx="2" ry="3.1" transform="rotate(24 37 62)" />
+                  <ellipse cx="54" cy="68" rx="3.5" ry="4.8" transform="rotate(-18 54 68)" />
+                  <ellipse cx="70" cy="75" rx="1.4" ry="2.4" transform="rotate(30 70 75)" />
+                  <ellipse cx="18" cy="78" rx="1.5" ry="2.7" transform="rotate(-16 18 78)" />
+                  <ellipse cx="43" cy="84" rx="1.2" ry="2" />
+                  <ellipse cx="83" cy="88" rx="2.8" ry="4" transform="rotate(30 83 88)" />
+                  <ellipse cx="31" cy="94" rx="4.2" ry="5.8" transform="rotate(-25 31 94)" />
+                  <ellipse cx="61" cy="91" rx="1.8" ry="3" transform="rotate(20 61 91)" />
+                  <ellipse cx="48" cy="108" rx="3.2" ry="4.3" transform="rotate(12 48 108)" />
+                  <ellipse cx="73" cy="108" rx="1.3" ry="2.4" transform="rotate(-30 73 108)" />
+                  <ellipse cx="16" cy="105" rx="1.4" ry="2.4" />
+                </g>
+                <g clipPath="url(#egg-shape)" fill="#8b6a4c">
+                  <circle cx="41" cy="19" r="1" />
+                  <circle cx="68" cy="28" r="1" />
+                  <circle cx="51" cy="35" r="1.3" />
+                  <circle cx="30" cy="40" r="1" />
+                  <circle cx="79" cy="48" r="1" />
+                  <circle cx="49" cy="54" r="1" />
+                  <circle cx="28" cy="69" r="1.1" />
+                  <circle cx="64" cy="61" r="1.2" />
+                  <circle cx="76" cy="68" r="1.1" />
+                  <circle cx="39" cy="75" r="1" />
+                  <circle cx="56" cy="81" r="1" />
+                  <circle cx="21" cy="88" r="1.2" />
+                  <circle cx="72" cy="96" r="1" />
+                  <circle cx="39" cy="104" r="1.2" />
+                </g>
+                <ellipse cx="34" cy="34" rx="5" ry="9" fill="#fff8e8" opacity=".55" />
+              </svg>
               <img className="tk-nest tk-nest-front" src={IMG.nestFront} alt="" draggable={false} />
             </>
           )}

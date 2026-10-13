@@ -103,6 +103,12 @@ export default function App() {
     () => ["Semua", ...new Set([...categoryOptions, ...links.map((link) => link.category)])],
     [links],
   );
+  const mascotSpeech =
+    links.length >= 3
+      ? "Cuit! Ada link menarik? Simpan dulu, ya."
+      : links.length === 0
+        ? "Simpan link pertama, yuk, biar telur ini menetas."
+        : `Simpan ${3 - links.length} link lagi, yuk, biar telurnya menetas.`;
 
   function showNotice(message: string, isError = false) {
     setNotice(message);
@@ -324,11 +330,7 @@ export default function App() {
         <main>
           <section className="hero">
             <div className="mascot-stage">
-              <Mascot
-                mood="happy"
-                savedCount={links.length}
-                speech="Cuit! Ada link menarik? Simpan di sarang dulu, ya."
-              />
+              <Mascot mood="happy" savedCount={links.length} speech={mascotSpeech} />
             </div>
           </section>
 
@@ -386,7 +388,6 @@ export default function App() {
                 <span className="mini-label">PESAN DARI TIKO</span>
                 <p>Pelan-pelan aja. Ide bagus layak disimpan. 🌱</p>
               </div>
-              <Mascot mood="peek" small />
             </div>
           </section>
 
@@ -473,7 +474,6 @@ export default function App() {
               ))}
               {visibleLinks.length === 0 && links.length > 0 && !loadError && (
                 <div className="empty-state">
-                  <Mascot mood="sleepy" small />
                   <h3>Belum ketemu, nih.</h3>
                   <p>Coba kata kunci lain atau pilih kategori berbeda.</p>
                   <button
@@ -488,7 +488,6 @@ export default function App() {
               )}
               {links.length === 0 && !loadError && (
                 <div className="empty-state">
-                  <Mascot mood="sleepy" small />
                   <h3>Sarangmu masih kosong.</h3>
                   <p>Simpan link pertama, nanti Tiko yang jaga.</p>
                   <button onClick={() => setShowAdd(true)}>Simpan link pertama</button>
