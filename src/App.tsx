@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Bookmark,
   Check,
@@ -9,64 +9,172 @@ import {
   Folder,
   House,
   Feather,
+  LogOut,
   Plus,
   Search,
   Settings2,
   X,
 } from "lucide-react";
 import Mascot from "./components/Mascot";
+import { ApiError, request, type LinkItem, type User } from "./lib/api";
 
 type SavedLink = {
   id: number;
   title: string;
   url: string;
+  href: string;
   category: string;
   note: string;
   color: string;
   initials: string;
 };
-const initialLinks: SavedLink[] = [
-  {
-    id: 1,
-    title: "Designing better empty states",
-    url: "uxplanet.org/empty-states",
-    category: "Desain",
-    note: "Referensi buat microcopy dan onboarding.",
-    color: "#e5d9be",
-    initials: "U",
-  },
-  {
-    id: 2,
-    title: "Build a tiny search engine",
-    url: "dev.to/build-search",
-    category: "Belajar",
-    note: "Coba implementasi saat weekend.",
-    color: "#dce7d4",
-    initials: "D",
-  },
-  {
-    id: 3,
-    title: "A collection of tiny tools",
-    url: "tinywow.com/tools",
-    category: "Tools",
-    note: "Tools yang mungkin kepakai buat project.",
-    color: "#dce4ec",
-    initials: "T",
-  },
-];
-const filters = ["Semua", "Belajar", "Desain", "Tools"];
+const sessionKey = "tumpuk.session";
+const categoryOptions = ["Belajar", "Desain", "Tools"];
+
+type AuthSession = { token: string; user: User };
+type AuthResponse = AuthSession;
+
+function readSession(): AuthSession | null {
+  const stored = window.sessionStorage.getItem(sessionKey);
+  if (!stored) return null;
+  try {
+    const value: unknown = JSON.parse(stored);
+    if (
+      value &&
+      typeof value === "object" &&
+      "token" in value &&
+      typeof value.token === "string" &&
+      "user" in value &&
+      value.user &&
+      typeof value.user === "object" &&
+      "id" in value.user &&
+      typeof value.user.id === "number" &&
+      "email" in value.user &&
+      typeof value.user.email === "string"
+    ) {
+      return { token: value.token, user: { id: value.user.id, email: value.user.email } };
+    }
+  } catch {
+    window.sessionStorage.removeItem(sessionKey);
+    return null;
+  }
+  window.sessionStorage.removeItem(sessionKey);
+  return null;
+}
+
+function toSavedLink(link: LinkItem): SavedLink {
+  const parsed = new URL(link.url);
+  return {
+    id: link.id,
+    title: link.title,
+    url: `${link.domain}${parsed.pathname}${parsed.search}`,
+    href: link.url,
+    category: link.tags[0]?.name ?? "Belajar",
+    note: link.description || "Belum ada catatan.",
+    color: "#e4e8d8",
+    initials: link.domain[0]?.toUpperCase() ?? "?",
+  };
+}
+
 export default function App() {
-  const [links, setLinks] = useState(initialLinks);
+  const [session, setSession] = useState<AuthSession | null>(readSession);
+  const [links, setLinks] = useState<SavedLink[]>([]);
+  const [loadError, setLoadError] = useState("");
+  const [reloadLinks, setReloadLinks] = useState(0);
+  const [isLoading, setIsLoading] = useState(() => session !== null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [activeFilter, setActiveFilter] = useState("Semua");
   const [query, setQuery] = useState("");
   const [url, setUrl] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeIsError, setNoticeIsError] = useState(false);
   const [savedView, setSavedView] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [category, setCategory] = useState("Belajar");
   const [note, setNote] = useState("");
   const [activeNav, setActiveNav] = useState("Home");
   const [showFilters, setShowFilters] = useState(false);
+  const filters = useMemo(
+    () => ["Semua", ...new Set([...categoryOptions, ...links.map((link) => link.category)])],
+    [links],
+  );
+
+  function showNotice(message: string, isError = false) {
+    setNotice(message);
+    setNoticeIsError(isError);
+  }
+
+  useEffect(() => {
+    if (!session) {
+      setLinks([]);
+      setIsLoading(false);
+      return;
+    }
+    let active = true;
+    const token = session.token;
+    setIsLoading(true);
+    setLoadError("");
+    async function loadLinks() {
+      try {
+        await request<User>("/api/me", { token });
+        const savedLinks = await request<LinkItem[]>("/api/links", { token });
+        if (active) {
+          setLinks(savedLinks.map(toSavedLink));
+          setLoadError("");
+        }
+      } catch (error) {
+        if (!active) return;
+        if (error instanceof ApiError && error.status === 401) {
+          window.sessionStorage.removeItem(sessionKey);
+          setSession(null);
+          setAuthError(error.message);
+        } else {
+          setLoadError(error instanceof Error ? error.message : "Link belum bisa dimuat.");
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    }
+    void loadLinks();
+    return () => {
+      active = false;
+    };
+  }, [session, reloadLinks]);
+
+  async function authenticate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const path = authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+      const result = await request<AuthResponse>(path, {
+        method: "POST",
+        body: { email: authEmail, password: authPassword },
+      });
+      window.sessionStorage.setItem(sessionKey, JSON.stringify(result));
+      setSession(result);
+      setAuthPassword("");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Akun belum bisa dibuka.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function signOut() {
+    window.sessionStorage.removeItem(sessionKey);
+    setSession(null);
+    setLinks([]);
+    setAuthError("");
+    showNotice("");
+    setLoadError("");
+  }
+
   const visibleLinks = useMemo(
     () =>
       links.filter(
@@ -78,10 +186,11 @@ export default function App() {
       ),
     [links, activeFilter, query],
   );
-  function saveLink() {
+  async function saveLink() {
+    if (!session) return;
     const trimmed = url.trim();
     if (!trimmed) {
-      setNotice("Tempel link dulu, ya.");
+      showNotice("Tempel link dulu, ya.", true);
       return;
     }
     let parsed: URL;
@@ -90,32 +199,104 @@ export default function App() {
         trimmed.includes("://") ? trimmed : `https://${trimmed}`,
       );
     } catch {
-      setNotice("Format link belum valid. Coba periksa lagi.");
+      showNotice("Format link belum valid. Coba periksa lagi.", true);
       return;
     }
-    const host = parsed.hostname.replace(/^www\./, "");
-    setLinks((current) => [
-      {
-        id: Date.now(),
-        title: host
-          .split(".")[0]
-          .replace(/[-_]/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase()),
-        url: host + parsed.pathname,
-        category,
-        note: note || "Belum ada catatan. Tambahkan nanti kalau perlu.",
-        color: "#e4e8d8",
-        initials: host[0].toUpperCase(),
-      },
-      ...current,
-    ]);
-    setUrl("");
-    setNote("");
-    setShowAdd(false);
-    setNotice("Link berhasil disimpan. Tiko ikut senang!");
-    setSavedView(true);
-    window.setTimeout(() => setNotice(""), 3000);
+    setIsSaving(true);
+    try {
+      const result = await request<{ link: LinkItem }>("/api/links", {
+        method: "POST",
+        token: session.token,
+        body: {
+          url: parsed.toString(),
+          description: note,
+          tagNames: [category],
+        },
+      });
+      setLinks((current) => [toSavedLink(result.link), ...current]);
+      setUrl("");
+      setNote("");
+      setShowAdd(false);
+      showNotice("Link berhasil disimpan. Tiko ikut senang!");
+      setSavedView(true);
+      window.setTimeout(() => showNotice(""), 3000);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        window.sessionStorage.removeItem(sessionKey);
+        setSession(null);
+        setAuthError(error.message);
+      } else {
+        showNotice(error instanceof Error ? error.message : "Link belum bisa disimpan.", true);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   }
+
+  if (!session) {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card" aria-labelledby="auth-title">
+          <a className="brand auth-brand" href="/" aria-label="Manuknest">
+            <span className="brand-icon"><Feather size={18} /></span>
+            <span>Manuknest</span>
+          </a>
+          <div className="auth-copy">
+            <div className="eyebrow muted">ARSIP TAUTAN PRIBADIMU</div>
+            <h1 id="auth-title">{authMode === "register" ? "Buat sarangmu." : "Link-link pentingmu."}</h1>
+            <p>{authMode === "register" ? "Daftar untuk mulai menyimpan halaman yang ingin kamu temukan lagi." : "Masuk untuk melanjutkan ke koleksi link yang kamu simpan."}</p>
+          </div>
+          <form className="auth-form" onSubmit={authenticate}>
+            <label className="field-label">
+              Email
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                value={authEmail}
+                onChange={(event) => setAuthEmail(event.target.value)}
+                placeholder="nama@email.com"
+              />
+            </label>
+            <label className="field-label">
+              Kata sandi
+              <input
+                type="password"
+                autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                required
+                minLength={authMode === "register" ? 10 : undefined}
+                maxLength={72}
+                value={authPassword}
+                onChange={(event) => setAuthPassword(event.target.value)}
+                placeholder={authMode === "register" ? "Minimal 10 karakter" : "Kata sandi akunmu"}
+              />
+            </label>
+            {authError && <p className="auth-error" role="alert">{authError}</p>}
+            <button className="save-button auth-submit" type="submit" disabled={authBusy}>
+              {authBusy ? "Menghubungkan..." : authMode === "register" ? "Buat akun" : "Masuk"}
+            </button>
+          </form>
+          <p className="auth-switch">
+            {authMode === "register" ? "Sudah punya akun?" : "Belum punya akun?"}{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode(authMode === "register" ? "login" : "register");
+                setAuthError("");
+              }}
+            >
+              {authMode === "register" ? "Masuk" : "Daftar"}
+            </button>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (isLoading) {
+    return <main className="auth-loading" role="status">Memuat link tersimpan...</main>;
+  }
+
   return (
     <div className="min-h-screen bg-paper text-ink">
       <div className="app-shell">
@@ -134,6 +315,10 @@ export default function App() {
             </span>
             <span>Manuknest</span>
           </a>
+          <button className="sign-out-button" onClick={signOut} aria-label={`Keluar dari akun ${session.user.email}`}>
+            <LogOut size={16} />
+            <span>Keluar</span>
+          </button>
         </header>
 
         <main>
@@ -154,24 +339,23 @@ export default function App() {
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && saveLink()}
+              onKeyDown={(e) => e.key === "Enter" && void saveLink()}
               placeholder="Tempel link yang ingin kamu simpan..."
               aria-label="URL yang ingin disimpan"
             />
-            <button className="save-button" onClick={saveLink}>
+            <button className="save-button" onClick={saveLink} disabled={isSaving}>
               <Bookmark size={15} /> Simpan link
             </button>
           </section>
           {notice && (
-            <div className="notice">
-              <Check size={15} />
+            <div className={noticeIsError ? "notice error" : "notice"} role={noticeIsError ? "alert" : "status"}>
+              {noticeIsError ? <X size={15} /> : <Check size={15} />}
               {notice}
-              <button onClick={() => setNotice("")} aria-label="Tutup">
+              <button onClick={() => showNotice("")} aria-label="Tutup">
                 <X size={14} />
               </button>
             </div>
           )}
-
           <section className="stats-row">
             <div className="stat-card">
               <div className="stat-label">
@@ -190,7 +374,7 @@ export default function App() {
                 KATEGORI <Folder size={15} />
               </div>
               <div className="stat-bottom">
-                <strong>0{new Set(links.map((l) => l.category)).size}</strong>
+                <strong>{String(new Set(links.map((l) => l.category)).size).padStart(2, "0")}</strong>
                 <span>topik dijelajahi</span>
                 <div className="stat-art art-folder">
                   <Folder size={29} />
@@ -256,6 +440,13 @@ export default function App() {
               </div>
             )}
             <div className="link-list">
+              {loadError && (
+                <div className="empty-state" role="alert">
+                  <h3>Link belum bisa dimuat.</h3>
+                  <p>{loadError}</p>
+                  <button onClick={() => setReloadLinks((current) => current + 1)}>Coba lagi</button>
+                </div>
+              )}
               {visibleLinks.map((link, index) => (
                 <article className="link-card" key={link.id}>
                   <div className="favicon" style={{ background: link.color }}>
@@ -271,11 +462,7 @@ export default function App() {
                   </div>
                   <a
                     className="open-link"
-                    href={
-                      link.url.startsWith("http")
-                        ? link.url
-                        : `https://${link.url}`
-                    }
+                    href={link.href}
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Buka ${link.title}`}
@@ -284,7 +471,7 @@ export default function App() {
                   </a>
                 </article>
               ))}
-              {visibleLinks.length === 0 && (
+              {visibleLinks.length === 0 && links.length > 0 && !loadError && (
                 <div className="empty-state">
                   <Mascot mood="sleepy" small />
                   <h3>Belum ketemu, nih.</h3>
@@ -297,6 +484,14 @@ export default function App() {
                   >
                     Reset pencarian
                   </button>
+                </div>
+              )}
+              {links.length === 0 && !loadError && (
+                <div className="empty-state">
+                  <Mascot mood="sleepy" small />
+                  <h3>Sarangmu masih kosong.</h3>
+                  <p>Simpan link pertama, nanti Tiko yang jaga.</p>
+                  <button onClick={() => setShowAdd(true)}>Simpan link pertama</button>
                 </div>
               )}
             </div>
@@ -328,10 +523,7 @@ export default function App() {
                   setShowFilters(true);
                   setActiveFilter("Semua");
                 }
-                if (name === "Settings")
-                  setNotice(
-                    "Pengaturan akun akan tersedia setelah backend ditambahkan.",
-                  );
+                if (name === "Settings") showNotice(`Masuk sebagai ${session.user.email}.`);
               }}
             >
               <Icon size={17} />
@@ -381,7 +573,7 @@ export default function App() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
-                {filters.slice(1).map((f) => (
+                {[...new Set([...categoryOptions, ...links.map((link) => link.category)])].map((f) => (
                   <option key={f}>{f}</option>
                 ))}
               </select>
@@ -395,7 +587,7 @@ export default function App() {
                 rows={3}
               />
             </label>
-            <button className="save-button modal-save" onClick={saveLink}>
+            <button className="save-button modal-save" onClick={saveLink} disabled={isSaving}>
               <Bookmark size={16} /> Simpan ke LinkNest
             </button>
           </div>
