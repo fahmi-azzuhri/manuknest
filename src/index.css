@@ -41,6 +41,11 @@
 .popular-url svg{flex:0 0 auto}
 .popular-owner-note{display:block;margin-top:10px;color:#50574b;font-size:11px}
 @media(max-width:520px){.popular-card{padding:15px 13px}.popular-card-heading h3{font-size:16px}.share-choice small{font-size:12px}}
+.link-card-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.delete-link-button{width:44px;height:44px;display:grid;place-items:center;border:1px solid #c9b9b1;border-radius:10px;background:#fffef9;color:#793d2d}
+.delete-link-button:hover:not(:disabled){background:#f4e8e2;border-color:#a84932}
+.delete-link-button:disabled{cursor:wait;opacity:.6}
+.link-card-actions :focus-visible{outline:3px solid #596b4a;outline-offset:3px}
 /* ===== TIKO: diam di sarang, klik untuk terbang (sprite dari gambar asli) ===== */
 .tiko{cursor:pointer;animation:none;outline:none;-webkit-tap-highlight-color:transparent}
 .tiko:focus-visible{outline:2px solid #78966c;outline-offset:4px;border-radius:24px}

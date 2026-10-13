@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Settings2,
+  Trash2,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -49,7 +50,18 @@ type SavedLink = {
   createdAt: string;
 };
 const sessionKey = "tumpuk.session";
-const categoryOptions = ["Belajar", "Desain", "Tools"];
+const categoryOptions = [
+  "Tutorial",
+  "Desain",
+  "Tools",
+  "Lagu",
+  "Film",
+  "Artikel",
+  "Edukasi",
+  "Berita",
+  "Referensi",
+  "Other",
+];
 
 type AuthSession = { token: string; user: User };
 type AuthResponse = AuthSession;
@@ -79,8 +91,12 @@ function readSession(): AuthSession | null {
           id: user.id as number,
           email: user.email as string,
           createdAt: typeof user.createdAt === "string" ? user.createdAt : "",
-          encryptionSalt: typeof user.encryptionSalt === "string" ? user.encryptionSalt : "",
-          encryptionCheck: typeof user.encryptionCheck === "string" ? user.encryptionCheck : "",
+          encryptionSalt:
+            typeof user.encryptionSalt === "string" ? user.encryptionSalt : "",
+          encryptionCheck:
+            typeof user.encryptionCheck === "string"
+              ? user.encryptionCheck
+              : "",
         },
       };
     }
@@ -104,7 +120,8 @@ function toSavedLink(
     title: vault.title || vault.domain,
     url: `${vault.domain}${parsed.pathname}${parsed.search}`,
     href: vault.url,
-    category: vault.tags[0] ?? "Belajar",
+    category:
+      vault.tags[0] === "Belajar" ? "Tutorial" : (vault.tags[0] ?? "Tutorial"),
     note: vault.description || "Belum ada catatan.",
     color: "#e4e8d8",
     initials: vault.domain[0]?.toUpperCase() ?? "?",
@@ -137,6 +154,7 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingLinkID, setDeletingLinkID] = useState<number | null>(null);
   const [likingPopularID, setLikingPopularID] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState("Semua");
   const [query, setQuery] = useState("");
@@ -145,7 +163,8 @@ export default function App() {
   const [noticeIsError, setNoticeIsError] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState("");
-  const [category, setCategory] = useState("Belajar");
+  const [category, setCategory] = useState("Tutorial");
+  const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
@@ -195,7 +214,11 @@ export default function App() {
         const decodedLinks: SavedLink[] = [];
         for (const savedLink of savedLinks) {
           if (savedLink.ciphertext) {
-            const vault = await decryptLink(savedLink.ciphertext, savedLink.urlHash, keys);
+            const vault = await decryptLink(
+              savedLink.ciphertext,
+              savedLink.urlHash,
+              keys,
+            );
             decodedLinks.push(
               toSavedLink(
                 savedLink.id,
@@ -207,7 +230,8 @@ export default function App() {
             continue;
           }
           const legacy = savedLink.legacy;
-          if (!legacy) throw new Error("Ada link lama yang datanya tidak lengkap.");
+          if (!legacy)
+            throw new Error("Ada link lama yang datanya tidak lengkap.");
           const normalized = await normalizeAndHashURL(legacy.url, keys);
           const vault: LinkVaultData = {
             url: normalized.url,
@@ -218,7 +242,9 @@ export default function App() {
             readStatus: legacy.readStatus || "unread",
             metadataStatus: legacy.metadataStatus || "unavailable",
             tags: legacy.tags.map((tag) => tag.name),
-            collections: legacy.collections.map((collection) => collection.name),
+            collections: legacy.collections.map(
+              (collection) => collection.name,
+            ),
           };
           const ciphertext = await encryptLink(vault, normalized.urlHash, keys);
           await request<{ link: LinkItem }>(`/api/links/${savedLink.id}`, {
@@ -320,7 +346,10 @@ export default function App() {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
       configured = await request<User>("/api/me", { token });
     }
-    const verifiedKeys = await deriveVaultKeys(password, configured.encryptionSalt);
+    const verifiedKeys = await deriveVaultKeys(
+      password,
+      configured.encryptionSalt,
+    );
     if (!(await verifyVaultCheck(configured.encryptionCheck, verifiedKeys))) {
       throw new Error("Kunci enkripsi arsip tidak cocok dengan akun ini.");
     }
@@ -426,12 +455,11 @@ export default function App() {
       ),
     [links, activeFilter, query],
   );
-  const displayedLinks = isSavedView
-    ? visibleLinks
-    : links.slice(0, 3);
+  const displayedLinks = isSavedView ? visibleLinks : links.slice(0, 3);
 
   function openAdd(initialUrl = "") {
     setUrl(initialUrl);
+    setTitle("");
     setAddError("");
     setShowAdd(true);
   }
@@ -477,7 +505,9 @@ export default function App() {
         setAuthError(error.message);
       } else {
         showNotice(
-          error instanceof Error ? error.message : "Suka belum bisa diperbarui.",
+          error instanceof Error
+            ? error.message
+            : "Suka belum bisa diperbarui.",
           true,
         );
       }
@@ -500,9 +530,14 @@ export default function App() {
       setAddError("Format link belum valid. Coba periksa lagi.");
       return;
     }
+    const savedTitle = title.trim() || normalized.domain;
+    if (sharePublic && new TextEncoder().encode(savedTitle).length > 500) {
+      setAddError("Judul untuk link yang dibagikan terlalu panjang.");
+      return;
+    }
     const vault: LinkVaultData = {
       url: normalized.url,
-      title: normalized.domain,
+      title: savedTitle,
       description: note.trim(),
       domain: normalized.domain,
       faviconUrl: "",
@@ -514,7 +549,11 @@ export default function App() {
     setAddError("");
     setIsSaving(true);
     try {
-      const ciphertext = await encryptLink(vault, normalized.urlHash, vaultKeys);
+      const ciphertext = await encryptLink(
+        vault,
+        normalized.urlHash,
+        vaultKeys,
+      );
       const result = await request<{ link: LinkItem }>("/api/links", {
         method: "POST",
         token: session.token,
@@ -522,7 +561,7 @@ export default function App() {
           urlHash: normalized.urlHash,
           ciphertext,
           ...(sharePublic
-            ? { share: { url: normalized.url, title: normalized.domain } }
+            ? { share: { url: normalized.url, title: vault.title } }
             : {}),
         },
       });
@@ -536,6 +575,7 @@ export default function App() {
         ...current,
       ]);
       setUrl("");
+      setTitle("");
       setNote("");
       setSharePublic(false);
       setShowAdd(false);
@@ -558,6 +598,41 @@ export default function App() {
       }
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function deleteSavedLink(link: SavedLink) {
+    if (!session || deletingLinkID !== null) return;
+    if (
+      !window.confirm(
+        `Hapus "${link.title}" dari arsipmu? Tindakan ini tidak bisa dibatalkan.`,
+      )
+    ) {
+      return;
+    }
+    setDeletingLinkID(link.id);
+    try {
+      await request<void>(`/api/links/${link.id}`, {
+        method: "DELETE",
+        token: session.token,
+      });
+      setLinks((current) => current.filter((item) => item.id !== link.id));
+      if (link.shared) setReloadPopular((current) => current + 1);
+      showNotice(`"${link.title}" dihapus dari arsip.`);
+      window.setTimeout(() => showNotice(""), 3000);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        window.sessionStorage.removeItem(sessionKey);
+        setSession(null);
+        setAuthError(error.message);
+      } else {
+        showNotice(
+          error instanceof Error ? error.message : "Link belum bisa dihapus.",
+          true,
+        );
+      }
+    } finally {
+      setDeletingLinkID(null);
     }
   }
 
@@ -656,13 +731,18 @@ export default function App() {
       <main className="auth-screen">
         <section className="auth-card" aria-labelledby="unlock-title">
           <a className="brand auth-brand" href="/" aria-label="Manuknest">
-            <span className="brand-icon"><Feather size={18} /></span>
+            <span className="brand-icon">
+              <Feather size={18} />
+            </span>
             <span>Manuknest</span>
           </a>
           <div className="auth-copy">
             <div className="eyebrow muted">ARSIP TERENKRIPSI</div>
             <h1 id="unlock-title">Buka arsipmu.</h1>
-            <p>Masukkan kata sandi untuk membuka link yang tersimpan di perangkat ini.</p>
+            <p>
+              Masukkan kata sandi untuk membuka link yang tersimpan di perangkat
+              ini.
+            </p>
           </div>
           <form className="auth-form" onSubmit={unlockVault}>
             <label className="field-label">
@@ -677,14 +757,24 @@ export default function App() {
                 placeholder="Kata sandi akunmu"
               />
             </label>
-            {authError && <p className="auth-error" role="alert">{authError}</p>}
-            <button className="save-button auth-submit" type="submit" disabled={authBusy}>
+            {authError && (
+              <p className="auth-error" role="alert">
+                {authError}
+              </p>
+            )}
+            <button
+              className="save-button auth-submit"
+              type="submit"
+              disabled={authBusy}
+            >
               {authBusy ? "Membuka arsip..." : "Buka arsip"}
             </button>
           </form>
           <p className="auth-switch">
             Akun: <strong>{session.user.email}</strong>{" "}
-            <button type="button" onClick={signOut}>Ganti akun</button>
+            <button type="button" onClick={signOut}>
+              Ganti akun
+            </button>
           </p>
         </section>
       </main>
@@ -740,343 +830,387 @@ export default function App() {
                   <dd>{session.user.email}</dd>
                 </div>
                 <div>
-                  <dt><CalendarDays size={15} /> Bergabung</dt>
+                  <dt>
+                    <CalendarDays size={15} /> Bergabung
+                  </dt>
                   <dd>{formatAccountDate(session.user.createdAt)}</dd>
                 </div>
               </dl>
               <section className="privacy-note" aria-labelledby="privacy-title">
                 <h2 id="privacy-title">Privasi arsip</h2>
-                <p>Secara default, URL, judul, catatan, kategori, koleksi, dan status baca dienkripsi di browser sebelum dikirim ke API. Jika kamu memilih Bagikan, hanya URL dan judul/domain yang dapat dilihat pengguna lain yang masuk. Catatan, kategori, koleksi, dan status baca tetap privat. Pencarian dan filter berjalan setelah arsip dibuka.</p>
-                <p>Kunci enkripsi dibuat dari kata sandi akun dan salt acak. Jika kata sandi hilang, isi arsip tidak bisa dipulihkan. Enkripsi melindungi isi di database dan API, tetapi pembuat aplikasi yang mengubah kode yang dimuat browser tetap dapat mengakses data setelah arsip dibuka.</p>
+                <p>
+                  Secara default, URL, judul, catatan, kategori, koleksi, dan
+                  status baca dienkripsi di browser sebelum dikirim ke API. Jika
+                  kamu memilih Bagikan, URL dan judul link dapat dilihat
+                  pengguna lain yang masuk. Catatan, kategori, koleksi, dan
+                  status baca tetap privat. Pencarian dan filter berjalan
+                  setelah arsip dibuka.
+                </p>
+                <p>
+                  Kunci enkripsi dibuat dari kata sandi akun dan salt acak. Jika
+                  kata sandi hilang, isi arsip tidak bisa dipulihkan. Enkripsi
+                  melindungi isi di database dan API, tetapi pembuat aplikasi
+                  yang mengubah kode yang dimuat browser tetap dapat mengakses
+                  data setelah arsip dibuka.
+                </p>
               </section>
             </section>
           ) : (
             <>
-          {isHome && (
-            <>
-              <section className="hero">
-                <div className="mascot-stage">
-                  <Mascot
-                    mood="happy"
-                    savedCount={links.length}
-                    speech={mascotSpeech}
-                  />
-                </div>
-              </section>
-
-              <form
-                className="quick-save"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  openAdd(String(formData.get("url") ?? ""));
-                }}
-              >
-                <div className="quick-save-icon" aria-hidden="true">
-                  <Plus size={18} />
-                </div>
-                <input
-                  name="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="Tempel link yang ingin kamu simpan..."
-                  aria-label="URL yang ingin disimpan"
-                />
-                <button className="save-button" type="submit">
-                  Simpan
-                </button>
-              </form>
-            </>
-          )}
-          {notice && (
-            <div
-              className={noticeIsError ? "notice error" : "notice"}
-              role={noticeIsError ? "alert" : "status"}
-            >
-              {noticeIsError ? <X size={15} /> : <Check size={15} />}
-              {notice}
-              <button onClick={() => showNotice("")} aria-label="Tutup">
-                <X size={14} />
-              </button>
-            </div>
-          )}
-          {isHome && (
-            <section className="stats-row">
-              <div className="stat-card">
-                <div className="stat-label">
-                  TOTAL KOLEKSI <Bookmark size={15} />
-                </div>
-                <div className="stat-bottom">
-                  <strong>{links.length.toString().padStart(2, "0")}</strong>
-                  <span>link tersimpan</span>
-                  <div className="stat-art art-bookmark">
-                    <Bookmark size={28} />
-                  </div>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">
-                  KATEGORI <Folder size={15} />
-                </div>
-                <div className="stat-bottom">
-                  <strong>
-                    {String(
-                      new Set(links.map((l) => l.category)).size,
-                    ).padStart(2, "0")}
-                  </strong>
-                  <span>topik dijelajahi</span>
-                  <div className="stat-art art-folder">
-                    <Folder size={29} />
-                  </div>
-                </div>
-              </div>
-              <div className="stat-card encouragement">
-                <div>
-                  <span className="mini-label">PESAN DARI TIKO</span>
-                  <p>Pelan-pelan aja. Ide bagus layak disimpan. 🌱</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          <section className="collection">
-            <div className="section-heading">
-              <div>
-                <div className="eyebrow muted">
-                  {isSavedView
-                    ? "ARSIP LENGKAP"
-                    : isPopularView
-                      ? "DARI PENGGUNA LAIN"
-                      : "BARU DISIMPAN"}
-                </div>
-                <h2>
-                  {isSavedView
-                    ? "Link tersimpan"
-                    : isPopularView
-                      ? "Terpopuler"
-                      : "Link terbaru"}{" "}
-                  {isSavedView ? (
-                    <span className="count">{links.length}</span>
-                  ) : isPopularView ? (
-                    <span className="count">{popularLinks.length}</span>
-                  ) : links.length > 3 ? (
-                    <span className="count">3</span>
-                  ) : null}
-                </h2>
-                {isPopularView && (
-                  <p className="collection-description">
-                    Pengguna yang masuk bisa melihat URL dan judul. Detail arsip lainnya tetap privat.
-                  </p>
-                )}
-              </div>
               {isHome && (
-                <button className="text-button" onClick={openArchive}>
-                  Lihat semua <ExternalLink size={14} />
-                </button>
-              )}
-            </div>
-            {isSavedView && (
-              <>
-                <div className="collection-tools">
-                  <label className="search-box">
-                    <Search size={16} />
+                <>
+                  <section className="hero">
+                    <div className="mascot-stage">
+                      <Mascot
+                        mood="happy"
+                        savedCount={links.length}
+                        speech={mascotSpeech}
+                      />
+                    </div>
+                  </section>
+
+                  <form
+                    className="quick-save"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const formData = new FormData(event.currentTarget);
+                      openAdd(String(formData.get("url") ?? ""));
+                    }}
+                  >
+                    <div className="quick-save-icon" aria-hidden="true">
+                      <Plus size={18} />
+                    </div>
                     <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Cari sesuatu yang kamu simpan..."
-                      aria-label="Cari link tersimpan"
+                      name="url"
+                      value={url}
+                      onChange={(event) => setUrl(event.target.value)}
+                      placeholder="Tempel link yang ingin kamu simpan..."
+                      aria-label="URL yang ingin disimpan"
                     />
-                  </label>
+                    <button className="save-button" type="submit">
+                      Simpan
+                    </button>
+                  </form>
+                </>
+              )}
+              {notice && (
+                <div
+                  className={noticeIsError ? "notice error" : "notice"}
+                  role={noticeIsError ? "alert" : "status"}
+                >
+                  {noticeIsError ? <X size={15} /> : <Check size={15} />}
+                  {notice}
+                  <button onClick={() => showNotice("")} aria-label="Tutup">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              {isHome && (
+                <section className="stats-row">
+                  <div className="stat-card">
+                    <div className="stat-label">
+                      TOTAL KOLEKSI <Bookmark size={15} />
+                    </div>
+                    <div className="stat-bottom">
+                      <strong>
+                        {links.length.toString().padStart(2, "0")}
+                      </strong>
+                      <span>link tersimpan</span>
+                      <div className="stat-art art-bookmark">
+                        <Bookmark size={28} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">
+                      KATEGORI <Folder size={15} />
+                    </div>
+                    <div className="stat-bottom">
+                      <strong>
+                        {String(
+                          new Set(links.map((l) => l.category)).size,
+                        ).padStart(2, "0")}
+                      </strong>
+                      <span>topik dijelajahi</span>
+                      <div className="stat-art art-folder">
+                        <Folder size={29} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stat-card encouragement">
+                    <div>
+                      <span className="mini-label">PESAN DARI TIKO</span>
+                      <p>Pelan-pelan aja. Ide bagus layak disimpan. 🌱</p>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <section className="collection">
+                <div className="section-heading">
+                  <div>
+                    <div className="eyebrow muted">
+                      {isSavedView
+                        ? "ARSIP LENGKAP"
+                        : isPopularView
+                          ? "DARI PENGGUNA LAIN"
+                          : "BARU DISIMPAN"}
+                    </div>
+                    <h2>
+                      {isSavedView
+                        ? "Link tersimpan"
+                        : isPopularView
+                          ? "Terpopuler"
+                          : "Link terbaru"}{" "}
+                      {isSavedView ? (
+                        <span className="count">{links.length}</span>
+                      ) : isPopularView ? (
+                        <span className="count">{popularLinks.length}</span>
+                      ) : links.length > 3 ? (
+                        <span className="count">3</span>
+                      ) : null}
+                    </h2>
+                    {isPopularView && (
+                      <p className="collection-description">
+                        Pengguna yang masuk bisa melihat URL dan judul. Detail
+                        arsip lainnya tetap privat.
+                      </p>
+                    )}
+                  </div>
+                  {isHome && (
+                    <button className="text-button" onClick={openArchive}>
+                      Lihat semua <ExternalLink size={14} />
+                    </button>
+                  )}
                 </div>
                 {isSavedView && (
-                  <div className="filter-chips" aria-label="Filter kategori">
-                    {filters.map((item) => (
-                      <button
-                        key={item}
-                        className={
-                          activeFilter === item ? "chip active" : "chip"
-                        }
-                        onClick={() => setActiveFilter(item)}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-            <div className="link-list">
-              {isPopularView && popularLoading && (
-                <div className="empty-state" role="status">
-                  Memuat link terpopuler...
-                </div>
-              )}
-              {isPopularView && popularError && (
-                <div className="empty-state" role="alert">
-                  <h3>Link terpopuler belum bisa dimuat.</h3>
-                  <p>{popularError}</p>
-                  <button
-                    onClick={() => setReloadPopular((current) => current + 1)}
-                  >
-                    Coba lagi
-                  </button>
-                </div>
-              )}
-              {!isPopularView && loadError && (
-                <div className="empty-state" role="alert">
-                  <h3>Link belum bisa dimuat.</h3>
-                  <p>{loadError}</p>
-                  <button
-                    onClick={() => setReloadLinks((current) => current + 1)}
-                  >
-                    Coba lagi
-                  </button>
-                </div>
-              )}
-              {isPopularView &&
-                !popularLoading &&
-                !popularError &&
-                popularLinks.length === 0 && (
-                  <div className="empty-state">
-                    <h3>Belum ada link yang dibagikan.</h3>
-                    <p>
-                      Saat menyimpan link, pemiliknya bisa memilih untuk
-                      membagikan URL dan judulnya di sini.
-                    </p>
-                    <button onClick={openHome}>Kembali ke Home</button>
-                  </div>
-                )}
-              {isPopularView &&
-                !popularLoading &&
-                !popularError &&
-                popularLinks.map((link) => (
-                  <article className="popular-card" key={link.id}>
-                    <div className="popular-card-heading">
-                      <div>
-                        <span className="eyebrow muted">TAUTAN PUBLIK</span>
-                        <h3>{link.title}</h3>
-                      </div>
-                      <button
-                        className={
-                          link.likedByMe
-                            ? "popular-like liked"
-                            : "popular-like"
-                        }
-                        aria-label={
-                          link.isOwner
-                            ? `Link milikmu, ${link.likeCount} suka`
-                            : link.likedByMe
-                              ? `Hapus sukamu, ${link.likeCount} suka`
-                              : `Sukai link, ${link.likeCount} suka`
-                        }
-                        aria-pressed={link.likedByMe}
-                        disabled={link.isOwner || likingPopularID === link.id}
-                        onClick={() => void togglePopularLike(link)}
-                      >
-                        <Heart
-                          size={17}
-                          fill={link.likedByMe ? "currentColor" : "none"}
+                  <>
+                    <div className="collection-tools">
+                      <label className="search-box">
+                        <Search size={16} />
+                        <input
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder="Cari sesuatu yang kamu simpan..."
+                          aria-label="Cari link tersimpan"
                         />
-                        <span>{link.likeCount}</span>
+                      </label>
+                    </div>
+                    {isSavedView && (
+                      <div
+                        className="filter-chips"
+                        aria-label="Filter kategori"
+                      >
+                        {filters.map((item) => (
+                          <button
+                            key={item}
+                            className={
+                              activeFilter === item ? "chip active" : "chip"
+                            }
+                            onClick={() => setActiveFilter(item)}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="link-list">
+                  {isPopularView && popularLoading && (
+                    <div className="empty-state" role="status">
+                      Memuat link terpopuler...
+                    </div>
+                  )}
+                  {isPopularView && popularError && (
+                    <div className="empty-state" role="alert">
+                      <h3>Link terpopuler belum bisa dimuat.</h3>
+                      <p>{popularError}</p>
+                      <button
+                        onClick={() =>
+                          setReloadPopular((current) => current + 1)
+                        }
+                      >
+                        Coba lagi
                       </button>
                     </div>
-                    <a
-                      className="popular-url"
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {link.url}
-                      <ExternalLink size={14} />
-                    </a>
-                    {link.isOwner && (
-                      <span className="popular-owner-note">
-                        Link ini kamu bagikan
-                      </span>
-                    )}
-                  </article>
-                ))}
-              {!isPopularView && displayedLinks.map((link) => (
-                <article className="link-card" key={link.id}>
-                  <div className="favicon" style={{ background: link.color }}>
-                    {link.initials}
-                  </div>
-                  <div className="link-content">
-                    <div className="link-title-row">
-                      <h3>{link.title}</h3>
-                      <span className="category-tag">{link.category}</span>
-                      {link.shared && (
-                        <span className="shared-tag">Dibagikan</span>
-                      )}
+                  )}
+                  {!isPopularView && loadError && (
+                    <div className="empty-state" role="alert">
+                      <h3>Link belum bisa dimuat.</h3>
+                      <p>{loadError}</p>
+                      <button
+                        onClick={() => setReloadLinks((current) => current + 1)}
+                      >
+                        Coba lagi
+                      </button>
                     </div>
-                    <div className="link-url">{link.url}</div>
-                    <p>{link.note}</p>
-                  </div>
-                  <a
-                    className="open-link"
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Buka ${link.title}`}
-                  >
-                    <ExternalLink size={16} />
-                  </a>
-                </article>
-              ))}
-              {isSavedView &&
-                displayedLinks.length === 0 &&
-                links.length > 0 &&
-                !loadError && (
-                  <div className="empty-state">
-                    <h3>Belum ketemu, nih.</h3>
-                    <p>Coba kata kunci lain atau pilih kategori berbeda.</p>
+                  )}
+                  {isPopularView &&
+                    !popularLoading &&
+                    !popularError &&
+                    popularLinks.length === 0 && (
+                      <div className="empty-state">
+                        <h3>Belum ada link yang dibagikan.</h3>
+                        <p>
+                          Saat menyimpan link, pemiliknya bisa memilih untuk
+                          membagikan URL dan judulnya di sini.
+                        </p>
+                        <button onClick={openHome}>Kembali ke Home</button>
+                      </div>
+                    )}
+                  {isPopularView &&
+                    !popularLoading &&
+                    !popularError &&
+                    popularLinks.map((link) => (
+                      <article className="popular-card" key={link.id}>
+                        <div className="popular-card-heading">
+                          <div>
+                            <span className="eyebrow muted">TAUTAN PUBLIK</span>
+                            <h3>{link.title}</h3>
+                          </div>
+                          <button
+                            className={
+                              link.likedByMe
+                                ? "popular-like liked"
+                                : "popular-like"
+                            }
+                            aria-label={
+                              link.isOwner
+                                ? `Link milikmu, ${link.likeCount} suka`
+                                : link.likedByMe
+                                  ? `Hapus sukamu, ${link.likeCount} suka`
+                                  : `Sukai link, ${link.likeCount} suka`
+                            }
+                            aria-pressed={link.likedByMe}
+                            disabled={
+                              link.isOwner || likingPopularID === link.id
+                            }
+                            onClick={() => void togglePopularLike(link)}
+                          >
+                            <Heart
+                              size={17}
+                              fill={link.likedByMe ? "currentColor" : "none"}
+                            />
+                            <span>{link.likeCount}</span>
+                          </button>
+                        </div>
+                        <a
+                          className="popular-url"
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {link.url}
+                          <ExternalLink size={14} />
+                        </a>
+                        {link.isOwner && (
+                          <span className="popular-owner-note">
+                            Link ini kamu bagikan
+                          </span>
+                        )}
+                      </article>
+                    ))}
+                  {!isPopularView &&
+                    displayedLinks.map((link) => (
+                      <article className="link-card" key={link.id}>
+                        <div
+                          className="favicon"
+                          style={{ background: link.color }}
+                        >
+                          {link.initials}
+                        </div>
+                        <div className="link-content">
+                          <div className="link-title-row">
+                            <h3>{link.title}</h3>
+                            <span className="category-tag">
+                              {link.category}
+                            </span>
+                            {link.shared && (
+                              <span className="shared-tag">Dibagikan</span>
+                            )}
+                          </div>
+                          <div className="link-url">{link.url}</div>
+                          <p>{link.note}</p>
+                        </div>
+                        <div className="link-card-actions">
+                          <a
+                            className="open-link"
+                            href={link.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Buka ${link.title}`}
+                          >
+                            <ExternalLink size={16} />
+                          </a>
+                          <button
+                            className="delete-link-button"
+                            type="button"
+                            aria-label={`Hapus ${link.title}`}
+                            disabled={deletingLinkID !== null}
+                            onClick={() => void deleteSavedLink(link)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  {isSavedView &&
+                    displayedLinks.length === 0 &&
+                    links.length > 0 &&
+                    !loadError && (
+                      <div className="empty-state">
+                        <h3>Belum ketemu, nih.</h3>
+                        <p>Coba kata kunci lain atau pilih kategori berbeda.</p>
+                        <button
+                          onClick={() => {
+                            setQuery("");
+                            setActiveFilter("Semua");
+                          }}
+                        >
+                          Reset pencarian
+                        </button>
+                      </div>
+                    )}
+                  {!isPopularView && links.length === 0 && !loadError && (
+                    <div className="empty-state">
+                      <h3>
+                        {isSavedView
+                          ? "Belum ada link tersimpan."
+                          : "Belum ada link terbaru."}
+                      </h3>
+                      <p>
+                        Tempel URL, lalu pilih kategori dan tambahkan catatan
+                        kalau perlu.
+                      </p>
+                      <button onClick={() => openAdd()}>
+                        Simpan link pertama
+                      </button>
+                    </div>
+                  )}
+                  {isHome && links.length > 3 && (
                     <button
-                      onClick={() => {
-                        setQuery("");
-                        setActiveFilter("Semua");
-                      }}
+                      className="text-button recent-links-more"
+                      onClick={() => openArchive()}
                     >
-                      Reset pencarian
+                      Buka semua {links.length} link
                     </button>
-                  </div>
-                )}
-              {!isPopularView && links.length === 0 && !loadError && (
-                <div className="empty-state">
-                  <h3>
-                    {isSavedView
-                      ? "Belum ada link tersimpan."
-                      : "Belum ada link terbaru."}
-                  </h3>
-                  <p>
-                    Tempel URL, lalu pilih kategori dan tambahkan catatan kalau
-                    perlu.
-                  </p>
-                  <button onClick={() => openAdd()}>Simpan link pertama</button>
+                  )}
                 </div>
+              </section>
+              {isHome && (
+                <section className="gentle-reminder">
+                  <div className="reminder-star">✳</div>
+                  <div>
+                    <strong>Biar linknya gampang dicari lagi.</strong>
+                    <p>
+                      Simpan link pentingmu, lalu cari lagi di Saved saat
+                      dibutuhkan.
+                    </p>
+                  </div>
+                  <span className="reminder-plant">⌁</span>
+                </section>
               )}
-              {isHome && links.length > 3 && (
-                <button
-                  className="text-button recent-links-more"
-                  onClick={() => openArchive()}
-                >
-                  Buka semua {links.length} link
-                </button>
-              )}
-            </div>
-          </section>
-          {isHome && (
-            <section className="gentle-reminder">
-              <div className="reminder-star">✳</div>
-              <div>
-                <strong>Biar linknya gampang dicari lagi.</strong>
-                <p>
-                  Simpan link pentingmu, lalu cari lagi di Saved saat
-                  dibutuhkan.
-                </p>
-              </div>
-              <span className="reminder-plant">⌁</span>
-            </section>
-          )}
             </>
           )}
         </main>
@@ -1127,7 +1261,7 @@ export default function App() {
                 <span className="eyebrow muted">DETAIL LINK</span>
                 <h2 id="add-link-title">Simpan link</h2>
                 <p className="modal-description" id="add-link-description">
-                  URL, kategori, dan catatanmu tersimpan bersama.
+                  Judul, kategori, dan catatan disimpan di arsip pribadimu.
                 </p>
               </div>
               <button
@@ -1150,6 +1284,15 @@ export default function App() {
                   setAddError("");
                 }}
                 placeholder="https://contoh.com"
+              />
+            </label>
+            <label className="field-label">
+              Judul link
+              <input
+                value={title}
+                maxLength={500}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Kosongkan untuk memakai nama domain"
               />
             </label>
             <label className="field-label">
@@ -1187,7 +1330,7 @@ export default function App() {
                 <span>
                   <strong>Bagikan di Terpopuler</strong>
                   <small>
-                    URL dan judul/domain bisa dilihat pengguna lain. Catatan,
+                    URL dan judul link bisa dilihat pengguna lain. Catatan,
                     kategori, dan status baca tetap privat.
                   </small>
                 </span>
