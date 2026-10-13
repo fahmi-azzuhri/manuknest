@@ -558,8 +558,8 @@ export default function App() {
           {!savedView && <section className="gentle-reminder">
             <div className="reminder-star">✳</div>
             <div>
-              <strong>Ruangmu, ritmemu.</strong>
-              <p>Nggak perlu langsung rapi. Simpan dulu, bereskan nanti.</p>
+              <strong>Biar linknya gampang dicari lagi.</strong>
+              <p>Simpan link pentingmu, lalu cari lagi di Saved saat dibutuhkan.</p>
             </div>
             <span className="reminder-plant">⌁</span>
           </section>}
