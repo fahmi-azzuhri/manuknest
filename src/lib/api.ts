@@ -12,21 +12,28 @@ export type Collection = {
 
 export type LinkItem = {
   id: number
-  url: string
-  title: string
-  description: string
-  domain: string
-  faviconUrl: string
-  readStatus: ReadStatus
-  metadataStatus: 'pending' | 'ready' | 'unavailable'
-  tags: Tag[]
-  collections: Collection[]
+  urlHash: string
+  ciphertext: string
   createdAt: string
+  legacy?: {
+    url: string
+    title: string
+    description: string
+    domain: string
+    faviconUrl: string
+    readStatus: ReadStatus
+    metadataStatus: 'pending' | 'ready' | 'unavailable'
+    tags: Array<{ name: string }>
+    collections: Array<{ name: string }>
+  }
 }
 
 export type User = {
   id: number
   email: string
+  createdAt: string
+  encryptionSalt: string
+  encryptionCheck: string
 }
 
 type RequestOptions = Omit<RequestInit, 'body'> & {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Bookmark,
+  CalendarDays,
   Check,
   ChevronDown,
   Compass,
@@ -17,6 +18,17 @@ import {
 } from "lucide-react";
 import Mascot from "./components/Mascot";
 import { ApiError, request, type LinkItem, type User } from "./lib/api";
+import {
+  createVaultCheck,
+  decryptLink,
+  deriveVaultKeys,
+  encryptLink,
+  generateVaultSalt,
+  normalizeAndHashURL,
+  verifyVaultCheck,
+  type LinkVaultData,
+  type VaultKeys,
+} from "./lib/vault";
 
 type SavedLink = {
   id: number;
@@ -27,6 +39,8 @@ type SavedLink = {
   note: string;
   color: string;
   initials: string;
+  vault: LinkVaultData;
+  createdAt: string;
 };
 const sessionKey = "tumpuk.session";
 const categoryOptions = ["Belajar", "Desain", "Tools"];
@@ -52,9 +66,16 @@ function readSession(): AuthSession | null {
       "email" in value.user &&
       typeof value.user.email === "string"
     ) {
+      const user = value.user as Record<string, unknown>;
       return {
         token: value.token,
-        user: { id: value.user.id, email: value.user.email },
+        user: {
+          id: user.id as number,
+          email: user.email as string,
+          createdAt: typeof user.createdAt === "string" ? user.createdAt : "",
+          encryptionSalt: typeof user.encryptionSalt === "string" ? user.encryptionSalt : "",
+          encryptionCheck: typeof user.encryptionCheck === "string" ? user.encryptionCheck : "",
+        },
       };
     }
   } catch {
@@ -65,22 +86,31 @@ function readSession(): AuthSession | null {
   return null;
 }
 
-function toSavedLink(link: LinkItem): SavedLink {
-  const parsed = new URL(link.url);
+function toSavedLink(id: number, vault: LinkVaultData, createdAt: string): SavedLink {
+  const parsed = new URL(vault.url);
   return {
-    id: link.id,
-    title: link.title,
-    url: `${link.domain}${parsed.pathname}${parsed.search}`,
-    href: link.url,
-    category: link.tags[0]?.name ?? "Belajar",
-    note: link.description || "Belum ada catatan.",
+    id,
+    title: vault.title || vault.domain,
+    url: `${vault.domain}${parsed.pathname}${parsed.search}`,
+    href: vault.url,
+    category: vault.tags[0] ?? "Belajar",
+    note: vault.description || "Belum ada catatan.",
     color: "#e4e8d8",
-    initials: link.domain[0]?.toUpperCase() ?? "?",
+    initials: vault.domain[0]?.toUpperCase() ?? "?",
+    vault,
+    createdAt,
   };
+}
+
+function formatAccountDate(value: string): string {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return "Tanggal tidak tersedia";
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(date);
 }
 
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(readSession);
+  const [vaultKeys, setVaultKeys] = useState<VaultKeys | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
   const [loadError, setLoadError] = useState("");
   const [reloadLinks, setReloadLinks] = useState(0);
@@ -132,21 +162,51 @@ export default function App() {
   }, [showAdd]);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || !vaultKeys) {
       setLinks([]);
       setIsLoading(false);
       return;
     }
     let active = true;
     const token = session.token;
+    const keys = vaultKeys;
     setIsLoading(true);
     setLoadError("");
     async function loadLinks() {
       try {
         await request<User>("/api/me", { token });
         const savedLinks = await request<LinkItem[]>("/api/links", { token });
+        const decodedLinks: SavedLink[] = [];
+        for (const savedLink of savedLinks) {
+          if (savedLink.ciphertext) {
+            const vault = await decryptLink(savedLink.ciphertext, savedLink.urlHash, keys);
+            decodedLinks.push(toSavedLink(savedLink.id, vault, savedLink.createdAt));
+            continue;
+          }
+          const legacy = savedLink.legacy;
+          if (!legacy) throw new Error("Ada link lama yang datanya tidak lengkap.");
+          const normalized = await normalizeAndHashURL(legacy.url, keys);
+          const vault: LinkVaultData = {
+            url: normalized.url,
+            title: legacy.title || normalized.domain,
+            description: legacy.description || "",
+            domain: normalized.domain,
+            faviconUrl: legacy.faviconUrl || "",
+            readStatus: legacy.readStatus || "unread",
+            metadataStatus: legacy.metadataStatus || "unavailable",
+            tags: legacy.tags.map((tag) => tag.name),
+            collections: legacy.collections.map((collection) => collection.name),
+          };
+          const ciphertext = await encryptLink(vault, normalized.urlHash, keys);
+          await request<{ link: LinkItem }>(`/api/links/${savedLink.id}`, {
+            method: "PATCH",
+            token,
+            body: { urlHash: normalized.urlHash, ciphertext },
+          });
+          decodedLinks.push(toSavedLink(savedLink.id, vault, savedLink.createdAt));
+        }
         if (active) {
-          setLinks(savedLinks.map(toSavedLink));
+          setLinks(decodedLinks);
           setLoadError("");
         }
       } catch (error) {
@@ -168,20 +228,79 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [session, reloadLinks]);
+  }, [session, reloadLinks, vaultKeys]);
+
+  async function prepareVault(
+    user: User,
+    token: string,
+    password: string,
+  ): Promise<{ user: User; keys: VaultKeys }> {
+    if (user.encryptionSalt && user.encryptionCheck) {
+      const keys = await deriveVaultKeys(password, user.encryptionSalt);
+      if (!(await verifyVaultCheck(user.encryptionCheck, keys))) {
+        throw new Error("Kunci enkripsi arsip tidak cocok dengan akun ini.");
+      }
+      return { user, keys };
+    }
+    if (user.encryptionSalt || user.encryptionCheck) {
+      throw new Error("Pengaturan enkripsi akun belum lengkap. Hubungi admin.");
+    }
+    const encryptionSalt = generateVaultSalt();
+    const keys = await deriveVaultKeys(password, encryptionSalt);
+    const encryptionCheck = await createVaultCheck(keys);
+    let configured: User;
+    try {
+      configured = await request<User>("/api/me/encryption", {
+        method: "POST",
+        token,
+        body: { encryptionSalt, encryptionCheck },
+      });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      configured = await request<User>("/api/me", { token });
+    }
+    const verifiedKeys = await deriveVaultKeys(password, configured.encryptionSalt);
+    if (!(await verifyVaultCheck(configured.encryptionCheck, verifiedKeys))) {
+      throw new Error("Kunci enkripsi arsip tidak cocok dengan akun ini.");
+    }
+    return { user: configured, keys: verifiedKeys };
+  }
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthBusy(true);
     setAuthError("");
     try {
-      const path =
-        authMode === "register" ? "/api/auth/register" : "/api/auth/login";
-      const result = await request<AuthResponse>(path, {
-        method: "POST",
-        body: { email: authEmail, password: authPassword },
-      });
+      let result: AuthResponse;
+      let keys: VaultKeys;
+      if (authMode === "register") {
+        const encryptionSalt = generateVaultSalt();
+        keys = await deriveVaultKeys(authPassword, encryptionSalt);
+        const encryptionCheck = await createVaultCheck(keys);
+        result = await request<AuthResponse>("/api/auth/register", {
+          method: "POST",
+          body: {
+            email: authEmail,
+            password: authPassword,
+            encryptionSalt,
+            encryptionCheck,
+          },
+        });
+      } else {
+        result = await request<AuthResponse>("/api/auth/login", {
+          method: "POST",
+          body: { email: authEmail, password: authPassword },
+        });
+        const prepared = await prepareVault(
+          result.user,
+          result.token,
+          authPassword,
+        );
+        result = { ...result, user: prepared.user };
+        keys = prepared.keys;
+      }
       window.sessionStorage.setItem(sessionKey, JSON.stringify(result));
+      setVaultKeys(keys);
       setSession(result);
       setAuthPassword("");
     } catch (error) {
@@ -193,9 +312,39 @@ export default function App() {
     }
   }
 
+  async function unlockVault(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session) return;
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const result = await request<AuthResponse>("/api/auth/login", {
+        method: "POST",
+        body: { email: session.user.email, password: authPassword },
+      });
+      const prepared = await prepareVault(
+        result.user,
+        result.token,
+        authPassword,
+      );
+      const unlocked = { ...result, user: prepared.user };
+      window.sessionStorage.setItem(sessionKey, JSON.stringify(unlocked));
+      setVaultKeys(prepared.keys);
+      setSession(unlocked);
+      setAuthPassword("");
+    } catch (error) {
+      setAuthError(
+        error instanceof Error ? error.message : "Arsip belum bisa dibuka.",
+      );
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   function signOut() {
     window.sessionStorage.removeItem(sessionKey);
     setSession(null);
+    setVaultKeys(null);
     setLinks([]);
     setAuthError("");
     showNotice("");
@@ -238,34 +387,46 @@ export default function App() {
   }
 
   async function saveLink() {
-    if (!session) return;
+    if (!session || !vaultKeys) return;
     const trimmed = url.trim();
     if (!trimmed) {
       setAddError("Tempel link yang ingin kamu simpan.");
       return;
     }
-    let parsed: URL;
+    let normalized: Awaited<ReturnType<typeof normalizeAndHashURL>>;
     try {
-      parsed = new URL(
-        trimmed.includes("://") ? trimmed : `https://${trimmed}`,
-      );
+      normalized = await normalizeAndHashURL(trimmed, vaultKeys);
     } catch {
       setAddError("Format link belum valid. Coba periksa lagi.");
       return;
     }
+    const vault: LinkVaultData = {
+      url: normalized.url,
+      title: normalized.domain,
+      description: note.trim(),
+      domain: normalized.domain,
+      faviconUrl: "",
+      readStatus: "unread",
+      metadataStatus: "unavailable",
+      tags: [category],
+      collections: [],
+    };
     setAddError("");
     setIsSaving(true);
     try {
+      const ciphertext = await encryptLink(vault, normalized.urlHash, vaultKeys);
       const result = await request<{ link: LinkItem }>("/api/links", {
         method: "POST",
         token: session.token,
         body: {
-          url: parsed.toString(),
-          description: note,
-          tagNames: [category],
+          urlHash: normalized.urlHash,
+          ciphertext,
         },
       });
-      setLinks((current) => [toSavedLink(result.link), ...current]);
+      setLinks((current) => [
+        toSavedLink(result.link.id, vault, result.link.createdAt),
+        ...current,
+      ]);
       setUrl("");
       setNote("");
       setShowAdd(false);
@@ -377,6 +538,46 @@ export default function App() {
     );
   }
 
+  if (!vaultKeys) {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card" aria-labelledby="unlock-title">
+          <a className="brand auth-brand" href="/" aria-label="Manuknest">
+            <span className="brand-icon"><Feather size={18} /></span>
+            <span>Manuknest</span>
+          </a>
+          <div className="auth-copy">
+            <div className="eyebrow muted">ARSIP TERENKRIPSI</div>
+            <h1 id="unlock-title">Buka arsipmu.</h1>
+            <p>Masukkan kata sandi untuk membuka link yang tersimpan di perangkat ini.</p>
+          </div>
+          <form className="auth-form" onSubmit={unlockVault}>
+            <label className="field-label">
+              Kata sandi akun
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                maxLength={72}
+                value={authPassword}
+                onChange={(event) => setAuthPassword(event.target.value)}
+                placeholder="Kata sandi akunmu"
+              />
+            </label>
+            {authError && <p className="auth-error" role="alert">{authError}</p>}
+            <button className="save-button auth-submit" type="submit" disabled={authBusy}>
+              {authBusy ? "Membuka arsip..." : "Buka arsip"}
+            </button>
+          </form>
+          <p className="auth-switch">
+            Akun: <strong>{session.user.email}</strong>{" "}
+            <button type="button" onClick={signOut}>Ganti akun</button>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
   if (isLoading) {
     return (
       <main className="auth-loading" role="status">
@@ -413,6 +614,31 @@ export default function App() {
         </header>
 
         <main>
+          {activeNav === "Settings" ? (
+            <section className="profile-page" aria-labelledby="profile-title">
+              <div className="profile-heading">
+                <div className="eyebrow muted">AKUN</div>
+                <h1 id="profile-title">Profil</h1>
+                <p>Informasi akun yang sedang kamu gunakan.</p>
+              </div>
+              <dl className="profile-details">
+                <div>
+                  <dt>Email</dt>
+                  <dd>{session.user.email}</dd>
+                </div>
+                <div>
+                  <dt><CalendarDays size={15} /> Bergabung</dt>
+                  <dd>{formatAccountDate(session.user.createdAt)}</dd>
+                </div>
+              </dl>
+              <section className="privacy-note" aria-labelledby="privacy-title">
+                <h2 id="privacy-title">Privasi arsip</h2>
+                <p>URL, judul, catatan, kategori, koleksi, dan status baca dienkripsi di browser sebelum dikirim ke API. Pencarian dan filter berjalan setelah arsip dibuka. Judul baru memakai domain karena server tidak mengambil metadata halaman.</p>
+                <p>Kunci enkripsi dibuat dari kata sandi akun dan salt acak. Jika kata sandi hilang, isi arsip tidak bisa dipulihkan. Enkripsi melindungi isi di database dan API, tetapi pembuat aplikasi yang mengubah kode yang dimuat browser tetap dapat mengakses data setelah arsip dibuka.</p>
+              </section>
+            </section>
+          ) : (
+            <>
           {!savedView && (
             <>
               <section className="hero">
@@ -444,7 +670,7 @@ export default function App() {
                   aria-label="URL yang ingin disimpan"
                 />
                 <button className="save-button" type="submit">
-                  Lanjutkan
+                  Simpan
                 </button>
               </form>
             </>
@@ -654,6 +880,8 @@ export default function App() {
               <span className="reminder-plant">⌁</span>
             </section>
           )}
+            </>
+          )}
         </main>
         <nav className="bottom-nav" aria-label="Navigasi utama">
           {[
@@ -672,8 +900,7 @@ export default function App() {
                 if (name === "Saved") openArchive();
                 if (name === "Explore") openArchive(true);
                 if (name === "Settings") setActiveNav(name);
-                if (name === "Settings")
-                  showNotice(`Masuk sebagai ${session.user.email}.`);
+                if (name === "Settings") showNotice("");
               }}
             >
               <Icon size={17} />
