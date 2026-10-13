@@ -95,6 +95,7 @@ export default function App() {
   const [noticeIsError, setNoticeIsError] = useState(false);
   const [savedView, setSavedView] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [addError, setAddError] = useState("");
   const [category, setCategory] = useState("Belajar");
   const [note, setNote] = useState("");
   const [activeNav, setActiveNav] = useState("Home");
@@ -114,6 +115,15 @@ export default function App() {
     setNotice(message);
     setNoticeIsError(isError);
   }
+
+  useEffect(() => {
+    if (!showAdd) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setShowAdd(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showAdd]);
 
   useEffect(() => {
     if (!session) {
@@ -192,11 +202,35 @@ export default function App() {
       ),
     [links, activeFilter, query],
   );
+  const displayedLinks = savedView ? visibleLinks : links.slice(0, 3);
+
+  function openAdd(initialUrl = "") {
+    setUrl(initialUrl);
+    setAddError("");
+    setShowAdd(true);
+  }
+
+  function openHome() {
+    setSavedView(false);
+    setActiveNav("Home");
+    setQuery("");
+    setActiveFilter("Semua");
+    setShowFilters(false);
+  }
+
+  function openArchive(showFilters = false) {
+    setSavedView(true);
+    setActiveNav(showFilters ? "Explore" : "Saved");
+    setQuery("");
+    setActiveFilter("Semua");
+    setShowFilters(showFilters);
+  }
+
   async function saveLink() {
     if (!session) return;
     const trimmed = url.trim();
     if (!trimmed) {
-      showNotice("Tempel link dulu, ya.", true);
+      setAddError("Tempel link yang ingin kamu simpan.");
       return;
     }
     let parsed: URL;
@@ -205,9 +239,10 @@ export default function App() {
         trimmed.includes("://") ? trimmed : `https://${trimmed}`,
       );
     } catch {
-      showNotice("Format link belum valid. Coba periksa lagi.", true);
+      setAddError("Format link belum valid. Coba periksa lagi.");
       return;
     }
+    setAddError("");
     setIsSaving(true);
     try {
       const result = await request<{ link: LinkItem }>("/api/links", {
@@ -224,7 +259,7 @@ export default function App() {
       setNote("");
       setShowAdd(false);
       showNotice("Link berhasil disimpan. Tiko ikut senang!");
-      setSavedView(true);
+      openArchive();
       window.setTimeout(() => showNotice(""), 3000);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -232,7 +267,7 @@ export default function App() {
         setSession(null);
         setAuthError(error.message);
       } else {
-        showNotice(error instanceof Error ? error.message : "Link belum bisa disimpan.", true);
+        setAddError(error instanceof Error ? error.message : "Link belum bisa disimpan.");
       }
     } finally {
       setIsSaving(false);
@@ -312,8 +347,7 @@ export default function App() {
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              setActiveNav("Home");
-              setSavedView(false);
+              openHome();
             }}
           >
             <span className="brand-icon">
@@ -328,27 +362,38 @@ export default function App() {
         </header>
 
         <main>
-          <section className="hero">
-            <div className="mascot-stage">
-              <Mascot mood="happy" savedCount={links.length} speech={mascotSpeech} />
-            </div>
-          </section>
+          {!savedView && (
+            <>
+              <section className="hero">
+                <div className="mascot-stage">
+                  <Mascot mood="happy" savedCount={links.length} speech={mascotSpeech} />
+                </div>
+              </section>
 
-          <section className="quick-save">
-            <div className="quick-save-icon">
-              <Plus size={18} />
-            </div>
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void saveLink()}
-              placeholder="Tempel link yang ingin kamu simpan..."
-              aria-label="URL yang ingin disimpan"
-            />
-            <button className="save-button" onClick={saveLink} disabled={isSaving}>
-              <Bookmark size={15} /> Simpan link
-            </button>
-          </section>
+              <form
+                className="quick-save"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  openAdd(String(formData.get("url") ?? ""));
+                }}
+              >
+                <div className="quick-save-icon" aria-hidden="true">
+                  <Plus size={18} />
+                </div>
+                <input
+                  name="url"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder="Tempel link yang ingin kamu simpan..."
+                  aria-label="URL yang ingin disimpan"
+                />
+                <button className="save-button" type="submit">
+                  Lanjutkan
+                </button>
+              </form>
+            </>
+          )}
           {notice && (
             <div className={noticeIsError ? "notice error" : "notice"} role={noticeIsError ? "alert" : "status"}>
               {noticeIsError ? <X size={15} /> : <Check size={15} />}
@@ -358,7 +403,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <section className="stats-row">
+          {!savedView && <section className="stats-row">
             <div className="stat-card">
               <div className="stat-label">
                 TOTAL KOLEKSI <Bookmark size={15} />
@@ -389,56 +434,63 @@ export default function App() {
                 <p>Pelan-pelan aja. Ide bagus layak disimpan. 🌱</p>
               </div>
             </div>
-          </section>
+          </section>}
 
           <section className="collection">
             <div className="section-heading">
               <div>
-                <div className="eyebrow muted">PERPUSTAKAAN MINI</div>
+                <div className="eyebrow muted">{savedView ? "ARSIP LENGKAP" : "BARU DISIMPAN"}</div>
                 <h2>
-                  {savedView ? "Link tersimpan" : "Koleksi kamu"}{" "}
-                  <span className="count">{links.length}</span>
+                  {savedView ? "Link tersimpan" : "Link terbaru"}{" "}
+                  {savedView ? <span className="count">{links.length}</span> : links.length > 3 ? <span className="count">3</span> : null}
                 </h2>
               </div>
               <button
                 className="text-button"
                 onClick={() => {
-                  setSavedView(!savedView);
-                  setActiveNav(savedView ? "Home" : "Saved");
+                  if (savedView) openHome();
+                  else openArchive();
                 }}
               >
-                {savedView ? "Lihat ringkasan" : "Lihat semua"}{" "}
+                {savedView ? "Kembali ke Home" : "Lihat semua"}{" "}
                 <ExternalLink size={14} />
               </button>
             </div>
-            <div className="collection-tools">
-              <label className="search-box">
-                <Search size={16} />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari sesuatu yang kamu simpan..."
-                />
-              </label>
-              <button
-                className={`filter-button ${showFilters ? "selected" : ""}`}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter size={15} /> Filter <ChevronDown size={14} />
-              </button>
-            </div>
-            {showFilters && (
-              <div className="filter-chips">
-                {filters.map((item) => (
+            {savedView && (
+              <>
+                <div className="collection-tools">
+                  <label className="search-box">
+                    <Search size={16} />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Cari sesuatu yang kamu simpan..."
+                      aria-label="Cari link tersimpan"
+                    />
+                  </label>
                   <button
-                    key={item}
-                    className={activeFilter === item ? "chip active" : "chip"}
-                    onClick={() => setActiveFilter(item)}
+                    className={`filter-button ${showFilters ? "selected" : ""}`}
+                    onClick={() => setShowFilters(!showFilters)}
+                    aria-expanded={showFilters}
+                    aria-controls="saved-filters"
                   >
-                    {item}
+                    <Filter size={15} /> Filter <ChevronDown size={14} />
                   </button>
-                ))}
-              </div>
+                </div>
+                {showFilters && (
+                  <div className="filter-chips" id="saved-filters">
+                    {filters.map((item) => (
+                      <button
+                        key={item}
+                        className={activeFilter === item ? "chip active" : "chip"}
+                        onClick={() => setActiveFilter(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             <div className="link-list">
               {loadError && (
@@ -448,7 +500,7 @@ export default function App() {
                   <button onClick={() => setReloadLinks((current) => current + 1)}>Coba lagi</button>
                 </div>
               )}
-              {visibleLinks.map((link, index) => (
+              {displayedLinks.map((link) => (
                 <article className="link-card" key={link.id}>
                   <div className="favicon" style={{ background: link.color }}>
                     {link.initials}
@@ -472,7 +524,7 @@ export default function App() {
                   </a>
                 </article>
               ))}
-              {visibleLinks.length === 0 && links.length > 0 && !loadError && (
+              {savedView && visibleLinks.length === 0 && links.length > 0 && !loadError && (
                 <div className="empty-state">
                   <h3>Belum ketemu, nih.</h3>
                   <p>Coba kata kunci lain atau pilih kategori berbeda.</p>
@@ -488,21 +540,29 @@ export default function App() {
               )}
               {links.length === 0 && !loadError && (
                 <div className="empty-state">
-                  <h3>Sarangmu masih kosong.</h3>
-                  <p>Simpan link pertama, nanti Tiko yang jaga.</p>
-                  <button onClick={() => setShowAdd(true)}>Simpan link pertama</button>
+                  <h3>{savedView ? "Belum ada link tersimpan." : "Belum ada link terbaru."}</h3>
+                  <p>Tempel URL, lalu pilih kategori dan tambahkan catatan kalau perlu.</p>
+                  <button onClick={() => openAdd()}>Simpan link pertama</button>
                 </div>
+              )}
+              {!savedView && links.length > 3 && (
+                <button
+                  className="text-button recent-links-more"
+                  onClick={() => openArchive()}
+                >
+                  Buka semua {links.length} link
+                </button>
               )}
             </div>
           </section>
-          <section className="gentle-reminder">
+          {!savedView && <section className="gentle-reminder">
             <div className="reminder-star">✳</div>
             <div>
               <strong>Ruangmu, ritmemu.</strong>
               <p>Nggak perlu langsung rapi. Simpan dulu, bereskan nanti.</p>
             </div>
             <span className="reminder-plant">⌁</span>
-          </section>
+          </section>}
         </main>
         <nav className="bottom-nav" aria-label="Navigasi utama">
           {[
@@ -514,14 +574,13 @@ export default function App() {
             <button
               key={name}
               className={activeNav === name ? "nav-item active" : "nav-item"}
+              aria-label={name}
+              aria-current={activeNav === name ? "page" : undefined}
               onClick={() => {
-                setActiveNav(name);
-                if (name === "Saved") setSavedView(true);
-                if (name === "Home") setSavedView(false);
-                if (name === "Explore") {
-                  setShowFilters(true);
-                  setActiveFilter("Semua");
-                }
+                if (name === "Home") openHome();
+                if (name === "Saved") openArchive();
+                if (name === "Explore") openArchive(true);
+                if (name === "Settings") setActiveNav(name);
                 if (name === "Settings") showNotice(`Masuk sebagai ${session.user.email}.`);
               }}
             >
@@ -529,13 +588,6 @@ export default function App() {
               <span>{name}</span>
             </button>
           ))}
-          <button
-            className="nav-add"
-            onClick={() => setShowAdd(true)}
-            aria-label="Tambah link"
-          >
-            <Plus size={21} />
-          </button>
         </nav>
       </div>
       {showAdd && (
@@ -543,14 +595,26 @@ export default function App() {
           className="modal-backdrop"
           onClick={(e) => e.target === e.currentTarget && setShowAdd(false)}
         >
-          <div className="add-modal">
+          <form
+            className="add-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-link-title"
+            aria-describedby="add-link-description"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveLink();
+            }}
+          >
             <div className="modal-head">
               <div>
-                <span className="eyebrow muted">TAMBAH KE KOLEKSI</span>
-                <h2>Simpan sesuatu ✨</h2>
+                <span className="eyebrow muted">DETAIL LINK</span>
+                <h2 id="add-link-title">Simpan link</h2>
+                <p className="modal-description" id="add-link-description">URL, kategori, dan catatanmu tersimpan bersama.</p>
               </div>
               <button
                 className="icon-button"
+                type="button"
                 onClick={() => setShowAdd(false)}
                 aria-label="Tutup"
               >
@@ -561,8 +625,12 @@ export default function App() {
               URL link
               <input
                 autoFocus
+                required
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setAddError("");
+                }}
                 placeholder="https://contoh.com"
               />
             </label>
@@ -586,10 +654,11 @@ export default function App() {
                 rows={3}
               />
             </label>
-            <button className="save-button modal-save" onClick={saveLink} disabled={isSaving}>
-              <Bookmark size={16} /> Simpan ke LinkNest
+            {addError && <p className="auth-error" role="alert">{addError}</p>}
+            <button className="save-button modal-save" type="submit" disabled={isSaving}>
+              <Bookmark size={16} /> {isSaving ? "Menyimpan..." : "Simpan link"}
             </button>
-          </div>
+          </form>
         </div>
       )}
     </div>
