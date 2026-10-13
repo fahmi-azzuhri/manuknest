@@ -14,6 +14,7 @@ export type LinkItem = {
   id: number
   urlHash: string
   ciphertext: string
+  shared: boolean
   createdAt: string
   legacy?: {
     url: string
@@ -26,6 +27,16 @@ export type LinkItem = {
     tags: Array<{ name: string }>
     collections: Array<{ name: string }>
   }
+}
+
+export type PopularLink = {
+  id: number
+  url: string
+  title: string
+  likeCount: number
+  likedByMe: boolean
+  isOwner: boolean
+  createdAt: string
 }
 
 export type User = {

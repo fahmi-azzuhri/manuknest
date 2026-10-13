@@ -3,21 +3,26 @@ import {
   Bookmark,
   CalendarDays,
   Check,
-  ChevronDown,
-  Compass,
   ExternalLink,
-  Filter,
   Folder,
   House,
   Feather,
+  Heart,
   LogOut,
   Plus,
   Search,
   Settings2,
+  TrendingUp,
   X,
 } from "lucide-react";
 import Mascot from "./components/Mascot";
-import { ApiError, request, type LinkItem, type User } from "./lib/api";
+import {
+  ApiError,
+  request,
+  type LinkItem,
+  type PopularLink,
+  type User,
+} from "./lib/api";
 import {
   createVaultCheck,
   decryptLink,
@@ -40,6 +45,7 @@ type SavedLink = {
   color: string;
   initials: string;
   vault: LinkVaultData;
+  shared: boolean;
   createdAt: string;
 };
 const sessionKey = "tumpuk.session";
@@ -86,7 +92,12 @@ function readSession(): AuthSession | null {
   return null;
 }
 
-function toSavedLink(id: number, vault: LinkVaultData, createdAt: string): SavedLink {
+function toSavedLink(
+  id: number,
+  vault: LinkVaultData,
+  createdAt: string,
+  shared = false,
+): SavedLink {
   const parsed = new URL(vault.url);
   return {
     id,
@@ -98,6 +109,7 @@ function toSavedLink(id: number, vault: LinkVaultData, createdAt: string): Saved
     color: "#e4e8d8",
     initials: vault.domain[0]?.toUpperCase() ?? "?",
     vault,
+    shared,
     createdAt,
   };
 }
@@ -112,6 +124,10 @@ export default function App() {
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [vaultKeys, setVaultKeys] = useState<VaultKeys | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
+  const [popularLinks, setPopularLinks] = useState<PopularLink[]>([]);
+  const [popularLoading, setPopularLoading] = useState(false);
+  const [popularError, setPopularError] = useState("");
+  const [reloadPopular, setReloadPopular] = useState(0);
   const [loadError, setLoadError] = useState("");
   const [reloadLinks, setReloadLinks] = useState(0);
   const [isLoading, setIsLoading] = useState(() => session !== null);
@@ -121,18 +137,18 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [likingPopularID, setLikingPopularID] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState("Semua");
   const [query, setQuery] = useState("");
   const [url, setUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [noticeIsError, setNoticeIsError] = useState(false);
-  const [savedView, setSavedView] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState("");
   const [category, setCategory] = useState("Belajar");
   const [note, setNote] = useState("");
+  const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
-  const [showFilters, setShowFilters] = useState(false);
   const filters = useMemo(
     () => [
       "Semua",
@@ -180,7 +196,14 @@ export default function App() {
         for (const savedLink of savedLinks) {
           if (savedLink.ciphertext) {
             const vault = await decryptLink(savedLink.ciphertext, savedLink.urlHash, keys);
-            decodedLinks.push(toSavedLink(savedLink.id, vault, savedLink.createdAt));
+            decodedLinks.push(
+              toSavedLink(
+                savedLink.id,
+                vault,
+                savedLink.createdAt,
+                savedLink.shared,
+              ),
+            );
             continue;
           }
           const legacy = savedLink.legacy;
@@ -203,7 +226,14 @@ export default function App() {
             token,
             body: { urlHash: normalized.urlHash, ciphertext },
           });
-          decodedLinks.push(toSavedLink(savedLink.id, vault, savedLink.createdAt));
+          decodedLinks.push(
+            toSavedLink(
+              savedLink.id,
+              vault,
+              savedLink.createdAt,
+              savedLink.shared,
+            ),
+          );
         }
         if (active) {
           setLinks(decodedLinks);
@@ -229,6 +259,37 @@ export default function App() {
       active = false;
     };
   }, [session, reloadLinks, vaultKeys]);
+
+  useEffect(() => {
+    if (!session || activeNav !== "Terpopuler") return;
+    let active = true;
+    setPopularLoading(true);
+    setPopularError("");
+    request<PopularLink[]>("/api/popular", { token: session.token })
+      .then((result) => {
+        if (active) setPopularLinks(result);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        if (error instanceof ApiError && error.status === 401) {
+          window.sessionStorage.removeItem(sessionKey);
+          setSession(null);
+          setAuthError(error.message);
+          return;
+        }
+        setPopularError(
+          error instanceof Error
+            ? error.message
+            : "Link terpopuler belum bisa dimuat.",
+        );
+      })
+      .finally(() => {
+        if (active) setPopularLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session, activeNav, reloadPopular]);
 
   async function prepareVault(
     user: User,
@@ -351,6 +412,9 @@ export default function App() {
     setLoadError("");
   }
 
+  const isHome = activeNav === "Home";
+  const isSavedView = activeNav === "Saved";
+  const isPopularView = activeNav === "Terpopuler";
   const visibleLinks = useMemo(
     () =>
       links.filter(
@@ -362,7 +426,9 @@ export default function App() {
       ),
     [links, activeFilter, query],
   );
-  const displayedLinks = savedView ? visibleLinks : links.slice(0, 3);
+  const displayedLinks = isSavedView
+    ? visibleLinks
+    : links.slice(0, 3);
 
   function openAdd(initialUrl = "") {
     setUrl(initialUrl);
@@ -371,19 +437,53 @@ export default function App() {
   }
 
   function openHome() {
-    setSavedView(false);
     setActiveNav("Home");
     setQuery("");
     setActiveFilter("Semua");
-    setShowFilters(false);
   }
 
-  function openArchive(showFilters = false) {
-    setSavedView(true);
-    setActiveNav(showFilters ? "Explore" : "Saved");
+  function openArchive() {
+    setActiveNav("Saved");
     setQuery("");
     setActiveFilter("Semua");
-    setShowFilters(showFilters);
+  }
+
+  function openPopular() {
+    setActiveNav("Terpopuler");
+  }
+
+  async function togglePopularLike(link: PopularLink) {
+    if (!session || likingPopularID !== null || link.isOwner) return;
+    setLikingPopularID(link.id);
+    try {
+      const result = await request<{ liked: boolean; likeCount: number }>(
+        `/api/popular/${link.id}/like`,
+        {
+          method: link.likedByMe ? "DELETE" : "POST",
+          token: session.token,
+        },
+      );
+      setPopularLinks((current) =>
+        current.map((item) =>
+          item.id === link.id
+            ? { ...item, likedByMe: result.liked, likeCount: result.likeCount }
+            : item,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        window.sessionStorage.removeItem(sessionKey);
+        setSession(null);
+        setAuthError(error.message);
+      } else {
+        showNotice(
+          error instanceof Error ? error.message : "Suka belum bisa diperbarui.",
+          true,
+        );
+      }
+    } finally {
+      setLikingPopularID(null);
+    }
   }
 
   async function saveLink() {
@@ -421,16 +521,29 @@ export default function App() {
         body: {
           urlHash: normalized.urlHash,
           ciphertext,
+          ...(sharePublic
+            ? { share: { url: normalized.url, title: normalized.domain } }
+            : {}),
         },
       });
       setLinks((current) => [
-        toSavedLink(result.link.id, vault, result.link.createdAt),
+        toSavedLink(
+          result.link.id,
+          vault,
+          result.link.createdAt,
+          result.link.shared,
+        ),
         ...current,
       ]);
       setUrl("");
       setNote("");
+      setSharePublic(false);
       setShowAdd(false);
-      showNotice("Link berhasil disimpan. Tiko ikut senang!");
+      showNotice(
+        sharePublic
+          ? "Link disimpan dan dibagikan di Terpopuler."
+          : "Link berhasil disimpan. Tiko ikut senang!",
+      );
       openArchive();
       window.setTimeout(() => showNotice(""), 3000);
     } catch (error) {
@@ -633,13 +746,13 @@ export default function App() {
               </dl>
               <section className="privacy-note" aria-labelledby="privacy-title">
                 <h2 id="privacy-title">Privasi arsip</h2>
-                <p>URL, judul, catatan, kategori, koleksi, dan status baca dienkripsi di browser sebelum dikirim ke API. Pencarian dan filter berjalan setelah arsip dibuka. Judul baru memakai domain karena server tidak mengambil metadata halaman.</p>
+                <p>Secara default, URL, judul, catatan, kategori, koleksi, dan status baca dienkripsi di browser sebelum dikirim ke API. Jika kamu memilih Bagikan, hanya URL dan judul/domain yang dapat dilihat pengguna lain yang masuk. Catatan, kategori, koleksi, dan status baca tetap privat. Pencarian dan filter berjalan setelah arsip dibuka.</p>
                 <p>Kunci enkripsi dibuat dari kata sandi akun dan salt acak. Jika kata sandi hilang, isi arsip tidak bisa dipulihkan. Enkripsi melindungi isi di database dan API, tetapi pembuat aplikasi yang mengubah kode yang dimuat browser tetap dapat mengakses data setelah arsip dibuka.</p>
               </section>
             </section>
           ) : (
             <>
-          {!savedView && (
+          {isHome && (
             <>
               <section className="hero">
                 <div className="mascot-stage">
@@ -687,7 +800,7 @@ export default function App() {
               </button>
             </div>
           )}
-          {!savedView && (
+          {isHome && (
             <section className="stats-row">
               <div className="stat-card">
                 <div className="stat-label">
@@ -730,29 +843,39 @@ export default function App() {
             <div className="section-heading">
               <div>
                 <div className="eyebrow muted">
-                  {savedView ? "ARSIP LENGKAP" : "BARU DISIMPAN"}
+                  {isSavedView
+                    ? "ARSIP LENGKAP"
+                    : isPopularView
+                      ? "DARI PENGGUNA LAIN"
+                      : "BARU DISIMPAN"}
                 </div>
                 <h2>
-                  {savedView ? "Link tersimpan" : "Link terbaru"}{" "}
-                  {savedView ? (
+                  {isSavedView
+                    ? "Link tersimpan"
+                    : isPopularView
+                      ? "Terpopuler"
+                      : "Link terbaru"}{" "}
+                  {isSavedView ? (
                     <span className="count">{links.length}</span>
+                  ) : isPopularView ? (
+                    <span className="count">{popularLinks.length}</span>
                   ) : links.length > 3 ? (
                     <span className="count">3</span>
                   ) : null}
                 </h2>
+                {isPopularView && (
+                  <p className="collection-description">
+                    Pengguna yang masuk bisa melihat URL dan judul. Detail arsip lainnya tetap privat.
+                  </p>
+                )}
               </div>
-              <button
-                className="text-button"
-                onClick={() => {
-                  if (savedView) openHome();
-                  else openArchive();
-                }}
-              >
-                {savedView ? "Kembali ke Home" : "Lihat semua"}{" "}
-                <ExternalLink size={14} />
-              </button>
+              {isHome && (
+                <button className="text-button" onClick={openArchive}>
+                  Lihat semua <ExternalLink size={14} />
+                </button>
+              )}
             </div>
-            {savedView && (
+            {isSavedView && (
               <>
                 <div className="collection-tools">
                   <label className="search-box">
@@ -764,17 +887,9 @@ export default function App() {
                       aria-label="Cari link tersimpan"
                     />
                   </label>
-                  <button
-                    className={`filter-button ${showFilters ? "selected" : ""}`}
-                    onClick={() => setShowFilters(!showFilters)}
-                    aria-expanded={showFilters}
-                    aria-controls="saved-filters"
-                  >
-                    <Filter size={15} /> Filter <ChevronDown size={14} />
-                  </button>
                 </div>
-                {showFilters && (
-                  <div className="filter-chips" id="saved-filters">
+                {isSavedView && (
+                  <div className="filter-chips" aria-label="Filter kategori">
                     {filters.map((item) => (
                       <button
                         key={item}
@@ -791,7 +906,23 @@ export default function App() {
               </>
             )}
             <div className="link-list">
-              {loadError && (
+              {isPopularView && popularLoading && (
+                <div className="empty-state" role="status">
+                  Memuat link terpopuler...
+                </div>
+              )}
+              {isPopularView && popularError && (
+                <div className="empty-state" role="alert">
+                  <h3>Link terpopuler belum bisa dimuat.</h3>
+                  <p>{popularError}</p>
+                  <button
+                    onClick={() => setReloadPopular((current) => current + 1)}
+                  >
+                    Coba lagi
+                  </button>
+                </div>
+              )}
+              {!isPopularView && loadError && (
                 <div className="empty-state" role="alert">
                   <h3>Link belum bisa dimuat.</h3>
                   <p>{loadError}</p>
@@ -802,7 +933,70 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {displayedLinks.map((link) => (
+              {isPopularView &&
+                !popularLoading &&
+                !popularError &&
+                popularLinks.length === 0 && (
+                  <div className="empty-state">
+                    <h3>Belum ada link yang dibagikan.</h3>
+                    <p>
+                      Saat menyimpan link, pemiliknya bisa memilih untuk
+                      membagikan URL dan judulnya di sini.
+                    </p>
+                    <button onClick={openHome}>Kembali ke Home</button>
+                  </div>
+                )}
+              {isPopularView &&
+                !popularLoading &&
+                !popularError &&
+                popularLinks.map((link) => (
+                  <article className="popular-card" key={link.id}>
+                    <div className="popular-card-heading">
+                      <div>
+                        <span className="eyebrow muted">TAUTAN PUBLIK</span>
+                        <h3>{link.title}</h3>
+                      </div>
+                      <button
+                        className={
+                          link.likedByMe
+                            ? "popular-like liked"
+                            : "popular-like"
+                        }
+                        aria-label={
+                          link.isOwner
+                            ? `Link milikmu, ${link.likeCount} suka`
+                            : link.likedByMe
+                              ? `Hapus sukamu, ${link.likeCount} suka`
+                              : `Sukai link, ${link.likeCount} suka`
+                        }
+                        aria-pressed={link.likedByMe}
+                        disabled={link.isOwner || likingPopularID === link.id}
+                        onClick={() => void togglePopularLike(link)}
+                      >
+                        <Heart
+                          size={17}
+                          fill={link.likedByMe ? "currentColor" : "none"}
+                        />
+                        <span>{link.likeCount}</span>
+                      </button>
+                    </div>
+                    <a
+                      className="popular-url"
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {link.url}
+                      <ExternalLink size={14} />
+                    </a>
+                    {link.isOwner && (
+                      <span className="popular-owner-note">
+                        Link ini kamu bagikan
+                      </span>
+                    )}
+                  </article>
+                ))}
+              {!isPopularView && displayedLinks.map((link) => (
                 <article className="link-card" key={link.id}>
                   <div className="favicon" style={{ background: link.color }}>
                     {link.initials}
@@ -811,6 +1005,9 @@ export default function App() {
                     <div className="link-title-row">
                       <h3>{link.title}</h3>
                       <span className="category-tag">{link.category}</span>
+                      {link.shared && (
+                        <span className="shared-tag">Dibagikan</span>
+                      )}
                     </div>
                     <div className="link-url">{link.url}</div>
                     <p>{link.note}</p>
@@ -826,8 +1023,8 @@ export default function App() {
                   </a>
                 </article>
               ))}
-              {savedView &&
-                visibleLinks.length === 0 &&
+              {isSavedView &&
+                displayedLinks.length === 0 &&
                 links.length > 0 &&
                 !loadError && (
                   <div className="empty-state">
@@ -843,10 +1040,10 @@ export default function App() {
                     </button>
                   </div>
                 )}
-              {links.length === 0 && !loadError && (
+              {!isPopularView && links.length === 0 && !loadError && (
                 <div className="empty-state">
                   <h3>
-                    {savedView
+                    {isSavedView
                       ? "Belum ada link tersimpan."
                       : "Belum ada link terbaru."}
                   </h3>
@@ -857,7 +1054,7 @@ export default function App() {
                   <button onClick={() => openAdd()}>Simpan link pertama</button>
                 </div>
               )}
-              {!savedView && links.length > 3 && (
+              {isHome && links.length > 3 && (
                 <button
                   className="text-button recent-links-more"
                   onClick={() => openArchive()}
@@ -867,7 +1064,7 @@ export default function App() {
               )}
             </div>
           </section>
-          {!savedView && (
+          {isHome && (
             <section className="gentle-reminder">
               <div className="reminder-star">✳</div>
               <div>
@@ -887,7 +1084,7 @@ export default function App() {
           {[
             { name: "Home", icon: House },
             { name: "Saved", icon: Bookmark },
-            { name: "Explore", icon: Compass },
+            { name: "Terpopuler", icon: TrendingUp },
             { name: "Settings", icon: Settings2 },
           ].map(({ name, icon: Icon }) => (
             <button
@@ -898,7 +1095,7 @@ export default function App() {
               onClick={() => {
                 if (name === "Home") openHome();
                 if (name === "Saved") openArchive();
-                if (name === "Explore") openArchive(true);
+                if (name === "Terpopuler") openPopular();
                 if (name === "Settings") setActiveNav(name);
                 if (name === "Settings") showNotice("");
               }}
@@ -980,6 +1177,22 @@ export default function App() {
                 rows={3}
               />
             </label>
+            <div className="share-option">
+              <label className="share-choice">
+                <input
+                  type="checkbox"
+                  checked={sharePublic}
+                  onChange={(event) => setSharePublic(event.target.checked)}
+                />
+                <span>
+                  <strong>Bagikan di Terpopuler</strong>
+                  <small>
+                    URL dan judul/domain bisa dilihat pengguna lain. Catatan,
+                    kategori, dan status baca tetap privat.
+                  </small>
+                </span>
+              </label>
+            </div>
             {addError && (
               <p className="auth-error" role="alert">
                 {addError}
