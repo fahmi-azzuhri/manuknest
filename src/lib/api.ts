@@ -88,7 +88,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     })
   } catch {
-    throw new ApiError('Server belum bisa dihubungi. Pastikan API Tumpuk berjalan, lalu coba lagi.', 0)
+    throw new ApiError('Server belum bisa dihubungi. Pastikan API Manuknest berjalan, lalu coba lagi.', 0)
   }
   if (response.status === 204) {
     return undefined as T
