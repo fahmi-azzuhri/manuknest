@@ -13,7 +13,7 @@ import {
   Search,
   Settings2,
   Trash2,
-  TrendingUp,
+  Telescope,
   X,
 } from "lucide-react";
 import Mascot from "./components/Mascot";
@@ -327,7 +327,7 @@ export default function App() {
   }, [session, reloadLinks, vaultKeys]);
 
   useEffect(() => {
-    if (!session || activeNav !== "Terpopuler") return;
+    if (!session || activeNav !== "Explore") return;
     let active = true;
     setPopularLoading(true);
     setPopularError("");
@@ -346,7 +346,7 @@ export default function App() {
         setPopularError(
           error instanceof Error
             ? error.message
-            : "Link terpopuler belum bisa dimuat.",
+            : "Link Explore belum bisa dimuat.",
         );
       })
       .finally(() => {
@@ -483,7 +483,7 @@ export default function App() {
 
   const isHome = activeNav === "Home";
   const isSavedView = activeNav === "Saved";
-  const isPopularView = activeNav === "Terpopuler";
+  const isPopularView = activeNav === "Explore";
   const visibleLinks = useMemo(
     () =>
       links.filter(
@@ -518,7 +518,7 @@ export default function App() {
   }
 
   function openPopular() {
-    setActiveNav("Terpopuler");
+    setActiveNav("Explore");
   }
 
   async function togglePopularLike(link: PopularLink) {
@@ -622,7 +622,7 @@ export default function App() {
       setShowAdd(false);
       showNotice(
         sharePublic
-          ? "Link disimpan dan dibagikan di Terpopuler."
+          ? "Link disimpan dan dibagikan di Explore."
           : "Link berhasil disimpan. Tiko ikut senang!",
       );
       openArchive();
@@ -995,14 +995,13 @@ export default function App() {
                         {isSavedView
                           ? "Link tersimpan"
                           : isPopularView
-                            ? "Terpopuler"
+                            ? "Explore"
                             : "Link terbaru"}
                       </span>
                     </h2>
                     {isPopularView && (
                       <p className="collection-description">
-                        Pengguna yang masuk bisa melihat URL dan judul. Detail
-                        arsip lainnya tetap privat.
+                        Jelajahi link yang dibagikan pengguna lain.
                       </p>
                     )}
                   </div>
@@ -1128,12 +1127,12 @@ export default function App() {
                 <div className="link-list">
                   {isPopularView && popularLoading && (
                     <div className="empty-state" role="status">
-                      Memuat link terpopuler...
+                      Memuat link Explore...
                     </div>
                   )}
                   {isPopularView && popularError && (
                     <div className="empty-state" role="alert">
-                      <h3>Link terpopuler belum bisa dimuat.</h3>
+                      <h3>Link Explore belum bisa dimuat.</h3>
                       <p>{popularError}</p>
                       <button
                         onClick={() =>
@@ -1162,8 +1161,8 @@ export default function App() {
                       <div className="empty-state">
                         <h3>Belum ada link yang dibagikan.</h3>
                         <p>
-                          Saat menyimpan link, pemiliknya bisa memilih untuk
-                          membagikan URL dan judulnya di sini.
+                          Link yang dibagikan akan muncul di sini. Pemiliknya
+                          memilih untuk menampilkan URL dan judulnya.
                         </p>
                         <button onClick={openHome}>Kembali ke Home</button>
                       </div>
@@ -1334,11 +1333,8 @@ export default function App() {
                 <section className="gentle-reminder">
                   <div className="reminder-star">✳</div>
                   <div>
-                    <strong>Biar linknya gampang dicari lagi.</strong>
-                    <p>
-                      Simpan link pentingmu, lalu cari lagi di Saved saat
-                      dibutuhkan.
-                    </p>
+                    <strong>Sarangnya link-link penting lo!</strong>
+                    <p>Temukan lagi halaman yang kamu simpan kapan pun.</p>
                   </div>
                   <span className="reminder-plant">⌁</span>
                 </section>
@@ -1350,7 +1346,7 @@ export default function App() {
           {[
             { name: "Home", icon: House },
             { name: "Saved", icon: Bookmark },
-            { name: "Terpopuler", icon: TrendingUp },
+            { name: "Explore", icon: Telescope },
             { name: "Settings", icon: Settings2 },
           ].map(({ name, icon: Icon }) => (
             <button
@@ -1361,7 +1357,7 @@ export default function App() {
               onClick={() => {
                 if (name === "Home") openHome();
                 if (name === "Saved") openArchive();
-                if (name === "Terpopuler") openPopular();
+                if (name === "Explore") openPopular();
                 if (name === "Settings") setActiveNav(name);
                 if (name === "Settings") showNotice("");
               }}
@@ -1460,7 +1456,7 @@ export default function App() {
                   onChange={(event) => setSharePublic(event.target.checked)}
                 />
                 <span>
-                  <strong>Bagikan di Terpopuler</strong>
+                  <strong>Bagikan di Explore</strong>
                   <small>
                     URL dan judul link bisa dilihat pengguna lain. Catatan,
                     kategori, dan status baca tetap privat.
