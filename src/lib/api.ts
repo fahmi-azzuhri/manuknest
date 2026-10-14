@@ -42,9 +42,17 @@ export type PopularLink = {
 export type User = {
   id: number
   email: string
+  username: string
+  musicVideoId: string
   createdAt: string
   encryptionSalt: string
   encryptionCheck: string
+}
+
+export type ProfileStats = {
+  sharedLinks: number
+  likesGiven: number
+  likesReceived: number
 }
 
 type RequestOptions = Omit<RequestInit, 'body'> & {

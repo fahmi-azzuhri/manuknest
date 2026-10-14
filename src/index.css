@@ -647,9 +647,52 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .auth-loading { min-height: 100vh; display: grid; place-items: center; padding: 24px; color: var(--ink); font-size: 14px; font-weight: 700; }
 
 /* ---------- Profil ---------- */
-.profile-page { max-width: 720px; margin: 40px auto 0; }
-.profile-heading h1 { display: inline-block; margin: 10px 0 6px; font-family: var(--display); font-size: clamp(30px, 5vw, 40px); font-weight: 600; }
-.profile-heading p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+.profile-page { max-width: 720px; margin: 24px auto 0; }
+.profile-hero { display: grid; justify-items: center; text-align: center; }
+.profile-avatar {
+  width: 112px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--sky);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 42px;
+  font-weight: 600;
+}
+.profile-hero h1 { margin: 14px 0 12px; font-family: var(--display); font-size: clamp(26px, 6vw, 36px); font-weight: 600; overflow-wrap: anywhere; }
+.profile-edit-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+.profile-edit-button:hover { background: var(--sky-soft); }
+.profile-feedback { margin: 16px 0 0; color: var(--ink); font-size: 13px; font-weight: 800; text-align: center; }
+.profile-edit-form { display: grid; gap: 14px; margin-top: 24px; padding: 20px; border: 2px solid var(--ink); border-radius: 20px; background: var(--sky-soft); }
+.profile-edit-form h2 { margin: 0; font-family: var(--display); font-size: 22px; font-weight: 600; }
+.profile-edit-form .field-label { margin: 0; }
+.profile-edit-form .field-label small,
+.auth-form .field-label small { color: var(--ink-2); font-size: 12px; font-weight: 600; line-height: 1.45; }
+.profile-edit-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.profile-edit-actions .save-button { min-height: 44px; }
+.profile-state { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; color: var(--ink-2); font-size: 13px; font-weight: 700; text-align: center; }
+.profile-state p { margin: 0; }
+.profile-state.error { color: #a01e30; }
+.profile-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 30px 0 24px; }
+.profile-stats > div { min-width: 0; padding: 14px 8px; border-bottom: 2px solid var(--ink); text-align: center; }
+.profile-stats dt { color: var(--ink-2); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.profile-stats dd { margin: 6px 0 0; font-family: var(--display); font-size: 30px; font-weight: 600; line-height: 1; }
 .profile-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 26px 0; }
 .profile-details > div { min-width: 0; padding: 16px 18px; border: 2px solid var(--ink); border-radius: 18px; background: var(--lav); }
 .profile-details > div:nth-child(2) { background: var(--mint); }
@@ -871,3 +914,125 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .stack-item.is-open .stack-chevron { transform: rotate(180deg); }
 .stack-collapse { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .stack-chevron { transition: none; } }
+
+/* =========================================================
+   PEMUTAR LAGU PROFIL: kartu putih, sampul bulat di kanan
+   ========================================================= */
+.profile-music { margin: 24px 0; }
+.profile-music h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-family: var(--display); font-size: 21px; font-weight: 600; }
+.profile-music > p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+
+.music-card {
+  --mp: #ee6b63;
+  --mp-soft: #fdeceb;
+  --cover: 200px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px;
+  background: #fff;
+  border-radius: 40px 999px 999px 40px;
+  box-shadow: 0 18px 40px rgba(20, 18, 58, .12), 0 2px 6px rgba(20, 18, 58, .06);
+}
+.music-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  padding-left: 36px;
+}
+.music-dots {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 28px;
+  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 12px;
+}
+.music-dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--mp); }
+.music-dots:hover { background: var(--mp-soft); }
+.music-info { min-width: 0; display: grid; gap: 2px; }
+.music-source { color: var(--ink-2); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; opacity: .8; }
+.music-artist {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  line-height: 1.2;
+  color: #4b4b4b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-song { margin: 0; color: #4b4b4b; font-size: 17px; font-weight: 600; letter-spacing: .4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-from { margin-top: 8px; color: var(--ink-2); font-size: 12px; letter-spacing: .6px; opacity: .8; }
+
+.music-progress input {
+  width: 100%;
+  height: 4px;
+  display: block;
+  margin: 8px 0 0;
+  border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: linear-gradient(to right, var(--mp) var(--music-progress, 0%), #d9d9d9 var(--music-progress, 0%));
+  cursor: pointer;
+}
+.music-progress input::-webkit-slider-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; appearance: none; -webkit-appearance: none; background: var(--mp); box-shadow: 0 2px 6px rgba(238, 107, 99, .5); }
+.music-progress input::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--mp); box-shadow: 0 2px 6px rgba(238, 107, 99, .5); }
+.music-progress input:disabled { cursor: wait; opacity: .6; }
+.music-time { display: flex; justify-content: space-between; margin-top: 10px; color: var(--ink-2); font-size: 12px; font-weight: 600; }
+
+.music-controls { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.music-controls button { display: grid; place-items: center; padding: 0; background: transparent; color: var(--mp); border: 0; transition: background .15s, transform .15s; }
+.music-controls button:disabled { opacity: .5; cursor: wait; }
+.music-small { width: 44px; height: 44px; border-radius: 50%; }
+.music-small:hover:not(:disabled), .music-small.is-active { background: var(--mp-soft); }
+.music-round { width: 54px; height: 54px; border: 2px solid var(--mp) !important; border-radius: 50%; }
+.music-round:hover:not(:disabled) { background: var(--mp-soft); }
+.music-round:active:not(:disabled) { transform: scale(.95); }
+.music-play { width: 80px; height: 80px; }
+.music-error { margin: 0; color: #a01e30; font-size: 13px; line-height: 1.5; }
+.music-error a { color: inherit; font-weight: 700; text-underline-offset: 2px; }
+
+.music-cover {
+  position: relative;
+  flex: none;
+  width: var(--cover);
+  height: var(--cover);
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(160deg, #f0706a 0%, #8e4a8f 55%, #4b2a7b 100%);
+  box-shadow: 0 10px 26px rgba(75, 42, 123, .35);
+}
+.music-cover-video { position: absolute; inset: 0; }
+.music-cover-img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+.music-cover-video iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--cover) * 16 / 9);
+  height: var(--cover);
+  border: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .music-card { --cover: 190px; flex-direction: column-reverse; gap: 20px; padding: 24px 18px; border-radius: 32px; }
+  .music-main { width: 100%; padding-left: 0; }
+  .music-dots { left: auto; right: 0; top: 0; }
+  .music-info { padding-right: 34px; }
+  .music-controls { gap: 8px; }
+  .music-round { width: 48px; height: 48px; }
+  .music-play { width: 70px; height: 70px; }
+}

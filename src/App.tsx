@@ -9,20 +9,23 @@ import {
   Feather,
   Heart,
   LogOut,
+  Pencil,
   Plus,
   Search,
-  Settings2,
   Trash2,
   Telescope,
+  UserRound,
   X,
 } from "lucide-react";
 import Mascot from "./components/Mascot";
 import CardStack from "./components/CardStack";
+import ProfileMusicPlayer from "./components/ProfileMusicPlayer";
 import {
   ApiError,
   request,
   type LinkItem,
   type PopularLink,
+  type ProfileStats,
   type User,
 } from "./lib/api";
 import {
@@ -93,6 +96,9 @@ function readSession(): AuthSession | null {
         user: {
           id: user.id as number,
           email: user.email as string,
+          username: typeof user.username === "string" ? user.username : "",
+          musicVideoId:
+            typeof user.musicVideoId === "string" ? user.musicVideoId : "",
           createdAt: typeof user.createdAt === "string" ? user.createdAt : "",
           encryptionSalt:
             typeof user.encryptionSalt === "string" ? user.encryptionSalt : "",
@@ -184,6 +190,8 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authMusicUrl, setAuthMusicUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deletingLinkID, setDeletingLinkID] = useState<number | null>(null);
   const [likingPopularID, setLikingPopularID] = useState<number | null>(null);
@@ -199,6 +207,16 @@ export default function App() {
   const [note, setNote] = useState("");
   const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
+  const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileReload, setProfileReload] = useState(0);
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [profileEditUsername, setProfileEditUsername] = useState("");
+  const [profileEditMusicUrl, setProfileEditMusicUrl] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState("");
+  const [profileSaveNotice, setProfileSaveNotice] = useState("");
   const filters = useMemo(
     () => [
       "Semua",
@@ -357,6 +375,45 @@ export default function App() {
     };
   }, [session, activeNav, reloadPopular]);
 
+  useEffect(() => {
+    if (!session || activeNav !== "Profile") return;
+    let active = true;
+    const token = session.token;
+    setProfileLoading(true);
+    setProfileError("");
+    Promise.all([
+      request<User>("/api/me", { token }),
+      request<ProfileStats>("/api/me/stats", { token }),
+    ])
+      .then(([user, stats]) => {
+        if (!active) return;
+        setProfileStats(stats);
+        setSession((current) => {
+          if (!current) return current;
+          const updated = { ...current, user };
+          window.sessionStorage.setItem(sessionKey, JSON.stringify(updated));
+          return updated;
+        });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        if (error instanceof ApiError && error.status === 401) {
+          window.sessionStorage.removeItem(sessionKey);
+          setSession(null);
+          setAuthError(error.message);
+        }
+        setProfileError(
+          error instanceof Error ? error.message : "Profil belum bisa dimuat.",
+        );
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session?.token, activeNav, profileReload]);
+
   async function prepareVault(
     user: User,
     token: string,
@@ -412,6 +469,8 @@ export default function App() {
           body: {
             email: authEmail,
             password: authPassword,
+            username: authUsername,
+            musicUrl: authMusicUrl,
             encryptionSalt,
             encryptionCheck,
           },
@@ -432,6 +491,8 @@ export default function App() {
       window.sessionStorage.setItem(sessionKey, JSON.stringify(result));
       setVaultKeys(keys);
       setSession(result);
+      setAuthUsername("");
+      setAuthMusicUrl("");
       setAuthPassword("");
     } catch (error) {
       setAuthError(
@@ -484,6 +545,7 @@ export default function App() {
   const isHome = activeNav === "Home";
   const isSavedView = activeNav === "Saved";
   const isPopularView = activeNav === "Explore";
+  const isProfileView = activeNav === "Profile";
   const visibleLinks = useMemo(
     () =>
       links.filter(
@@ -519,6 +581,62 @@ export default function App() {
 
   function openPopular() {
     setActiveNav("Explore");
+  }
+
+  function openProfile() {
+    setActiveNav("Profile");
+    setProfileEditOpen(false);
+    setProfileSaveError("");
+    setProfileSaveNotice("");
+  }
+
+  function editProfile() {
+    setProfileEditUsername(session?.user.username ?? "");
+    setProfileEditMusicUrl(
+      session?.user.musicVideoId
+        ? `https://music.youtube.com/watch?v=${session.user.musicVideoId}`
+        : "",
+    );
+    setProfileSaveError("");
+    setProfileSaveNotice("");
+    setProfileEditOpen(true);
+  }
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session || profileSaving) return;
+    setProfileSaving(true);
+    setProfileSaveError("");
+    setProfileSaveNotice("");
+    try {
+      const user = await request<User>("/api/me/profile", {
+        method: "PATCH",
+        token: session.token,
+        body: {
+          username: profileEditUsername,
+          musicUrl: profileEditMusicUrl,
+        },
+      });
+      setSession((current) => {
+        if (!current) return current;
+        const updated = { ...current, user };
+        window.sessionStorage.setItem(sessionKey, JSON.stringify(updated));
+        return updated;
+      });
+      setProfileEditOpen(false);
+      setProfileSaveNotice("Profil berhasil diperbarui.");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        window.sessionStorage.removeItem(sessionKey);
+        setSession(null);
+        setAuthError(error.message);
+      }
+      setProfileSaveError(
+        error instanceof Error ? error.message : "Profil belum bisa disimpan.",
+      );
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   async function togglePopularLike(link: PopularLink) {
@@ -701,6 +819,22 @@ export default function App() {
             </p>
           </div>
           <form className="auth-form" onSubmit={authenticate}>
+            {authMode === "register" && (
+              <label className="field-label">
+                Username
+                <input
+                  type="text"
+                  autoComplete="username"
+                  required
+                  minLength={3}
+                  maxLength={24}
+                  pattern="[A-Za-z0-9][A-Za-z0-9_]{2,23}"
+                  value={authUsername}
+                  onChange={(event) => setAuthUsername(event.target.value)}
+                  placeholder="contoh: tiko_7"
+                />
+              </label>
+            )}
             <label className="field-label">
               Email
               <input
@@ -731,6 +865,18 @@ export default function App() {
                 }
               />
             </label>
+            {authMode === "register" && (
+              <label className="field-label">
+                Lagu profil (opsional)
+                <input
+                  type="url"
+                  value={authMusicUrl}
+                  onChange={(event) => setAuthMusicUrl(event.target.value)}
+                  placeholder="https://music.youtube.com/watch?v=..."
+                />
+                <small>Tempel link satu lagu dari YouTube Music.</small>
+              </label>
+            )}
             {authError && (
               <p className="auth-error" role="alert">
                 {authError}
@@ -858,13 +1004,135 @@ export default function App() {
         </header>
 
         <main>
-          {activeNav === "Settings" ? (
+          {isProfileView ? (
             <section className="profile-page" aria-labelledby="profile-title">
-              <div className="profile-heading">
-                <div className="eyebrow muted">AKUN</div>
-                <h1 id="profile-title">Profil</h1>
-                <p>Informasi akun yang sedang kamu gunakan.</p>
-              </div>
+              <header className="profile-hero">
+                <div className="profile-avatar" aria-hidden="true">
+                  {session.user.username[0]?.toUpperCase() ?? (
+                    <UserRound size={34} />
+                  )}
+                </div>
+                <h1 id="profile-title">
+                  {session.user.username
+                    ? `@${session.user.username}`
+                    : "Atur username profil"}
+                </h1>
+                <button
+                  className="profile-edit-button"
+                  type="button"
+                  onClick={editProfile}
+                  aria-expanded={profileEditOpen}
+                  aria-controls="profile-edit-form"
+                >
+                  <Pencil size={16} />
+                  Edit profil
+                </button>
+              </header>
+              {profileSaveNotice && (
+                <p className="profile-feedback" role="status">
+                  {profileSaveNotice}
+                </p>
+              )}
+              {profileEditOpen && (
+                <form
+                  className="profile-edit-form"
+                  id="profile-edit-form"
+                  onSubmit={(event) => void saveProfile(event)}
+                >
+                  <h2>Edit profil</h2>
+                  <label className="field-label">
+                    Username
+                    <input
+                      type="text"
+                      autoComplete="username"
+                      required
+                      minLength={3}
+                      maxLength={24}
+                      pattern="[A-Za-z0-9][A-Za-z0-9_]{2,23}"
+                      value={profileEditUsername}
+                      onChange={(event) =>
+                        setProfileEditUsername(event.target.value)
+                      }
+                    />
+                    <small>
+                      Username harus unik. Gunakan 3-24 huruf, angka, atau garis
+                      bawah.
+                    </small>
+                  </label>
+                  <label className="field-label">
+                    Lagu YouTube Music
+                    <input
+                      type="url"
+                      value={profileEditMusicUrl}
+                      onChange={(event) =>
+                        setProfileEditMusicUrl(event.target.value)
+                      }
+                      placeholder="https://music.youtube.com/watch?v=..."
+                    />
+                    <small>
+                      Opsional. Tempel link satu lagu; kosongkan untuk menghapus
+                      pemutar musik.
+                    </small>
+                  </label>
+                  {profileSaveError && (
+                    <p className="auth-error" role="alert">
+                      {profileSaveError}
+                    </p>
+                  )}
+                  <div className="profile-edit-actions">
+                    <button
+                      className="profile-edit-button"
+                      type="button"
+                      onClick={() => {
+                        setProfileEditOpen(false);
+                        setProfileSaveError("");
+                      }}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      className="save-button"
+                      type="submit"
+                      disabled={profileSaving}
+                    >
+                      {profileSaving ? "Menyimpan..." : "Simpan profil"}
+                    </button>
+                  </div>
+                </form>
+              )}
+              {profileLoading && (
+                <div className="profile-state" role="status">
+                  Memuat statistik profil...
+                </div>
+              )}
+              {profileError && (
+                <div className="profile-state error" role="alert">
+                  <p>{profileError}</p>
+                  <button
+                    className="profile-edit-button"
+                    type="button"
+                    onClick={() => setProfileReload((current) => current + 1)}
+                  >
+                    Coba lagi
+                  </button>
+                </div>
+              )}
+              {profileStats && !profileError && (
+                <dl className="profile-stats" aria-label="Statistik profil">
+                  <div>
+                    <dt>Dibagikan</dt>
+                    <dd>{profileStats.sharedLinks}</dd>
+                  </div>
+                  <div>
+                    <dt>Menyukai</dt>
+                    <dd>{profileStats.likesGiven}</dd>
+                  </div>
+                  <div>
+                    <dt>Disukai</dt>
+                    <dd>{profileStats.likesReceived}</dd>
+                  </div>
+                </dl>
+              )}
               <dl className="profile-details">
                 <div>
                   <dt>Email</dt>
@@ -877,23 +1145,15 @@ export default function App() {
                   <dd>{formatAccountDate(session.user.createdAt)}</dd>
                 </div>
               </dl>
-              <section className="privacy-note" aria-labelledby="privacy-title">
-                <h2 id="privacy-title">Privasi arsip</h2>
-                <p>
-                  Secara default, URL, judul, catatan, kategori, koleksi, dan
-                  status baca dienkripsi di browser sebelum dikirim ke API. Jika
-                  kamu memilih Bagikan, URL dan judul link dapat dilihat
-                  pengguna lain yang masuk. Catatan, kategori, koleksi, dan
-                  status baca tetap privat. Pencarian dan filter berjalan
-                  setelah arsip dibuka.
-                </p>
-                <p>
-                  Kunci enkripsi dibuat dari kata sandi akun dan salt acak. Jika
-                  kata sandi hilang, isi arsip tidak bisa dipulihkan. Enkripsi
-                  melindungi isi di database dan API, tetapi pembuat aplikasi
-                  yang mengubah kode yang dimuat browser tetap dapat mengakses
-                  data setelah arsip dibuka.
-                </p>
+              <section className="profile-music" aria-labelledby="music-title">
+                {session.user.musicVideoId ? (
+                  <ProfileMusicPlayer videoId={session.user.musicVideoId} />
+                ) : (
+                  <p>
+                    Belum ada lagu profil. Tambahkan satu link lagu YouTube
+                    Music lewat Edit profil.
+                  </p>
+                )}
               </section>
             </section>
           ) : (
@@ -1347,7 +1607,7 @@ export default function App() {
             { name: "Home", icon: House },
             { name: "Saved", icon: Bookmark },
             { name: "Explore", icon: Telescope },
-            { name: "Settings", icon: Settings2 },
+            { name: "Profile", icon: UserRound },
           ].map(({ name, icon: Icon }) => (
             <button
               key={name}
@@ -1358,8 +1618,7 @@ export default function App() {
                 if (name === "Home") openHome();
                 if (name === "Saved") openArchive();
                 if (name === "Explore") openPopular();
-                if (name === "Settings") setActiveNav(name);
-                if (name === "Settings") showNotice("");
+                if (name === "Profile") openProfile();
               }}
             >
               <Icon size={17} />
