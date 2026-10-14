@@ -495,7 +495,8 @@ export default function App() {
       ),
     [links, activeFilter, query],
   );
-  const displayedLinks = isSavedView ? visibleLinks : links.slice(0, 3);
+  const recentLinks = links.slice(0, 3);
+  const displayedLinks = isSavedView ? visibleLinks : recentLinks;
 
   function openAdd(initialUrl = "") {
     setUrl(initialUrl);
@@ -989,13 +990,6 @@ export default function App() {
               <section className="collection">
                 <div className="section-heading">
                   <div>
-                    <div className="eyebrow muted">
-                      {isSavedView
-                        ? "ARSIP LENGKAP"
-                        : isPopularView
-                          ? "DARI PENGGUNA LAIN"
-                          : "BARU DISIMPAN"}
-                    </div>
                     <h2>
                       <span className="hl">
                         {isSavedView
@@ -1003,14 +997,7 @@ export default function App() {
                           : isPopularView
                             ? "Terpopuler"
                             : "Link terbaru"}
-                      </span>{" "}
-                      {isSavedView ? (
-                        <span className="count">{links.length}</span>
-                      ) : isPopularView ? (
-                        <span className="count">{popularLinks.length}</span>
-                      ) : links.length > 3 ? (
-                        <span className="count">3</span>
-                      ) : null}
+                      </span>
                     </h2>
                     {isPopularView && (
                       <p className="collection-description">
@@ -1021,7 +1008,7 @@ export default function App() {
                   </div>
                   {isHome && (
                     <button className="text-button" onClick={openArchive}>
-                      Lihat semua <ExternalLink size={14} />
+                      Lihat semua
                     </button>
                   )}
                 </div>
