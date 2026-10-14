@@ -89,8 +89,11 @@ npm run cap:open
 
 ## Project layout
 
-- `src/App.tsx` contains the main application flow and navigation.
-- `src/components/` contains page and interface components.
+- `src/App.tsx` manages application state, API actions, and page composition.
+- `src/components/app/` contains the authentication, dashboard, collection,
+  profile, navigation, and link-dialog components used by `App.tsx`.
+- `src/components/` contains shared interface components such as the mascot,
+  shared profile, and link-card stack.
 - `src/lib/api.ts` defines frontend API requests and response types.
 - `src/lib/vault.ts` handles link encryption, decryption, and URL lookup hashes.
 - `public/tiko/` contains the Manuknest mascot assets.
