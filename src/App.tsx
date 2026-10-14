@@ -1213,9 +1213,7 @@ export default function App() {
                       TOTAL KOLEKSI <Bookmark size={15} />
                     </div>
                     <div className="stat-bottom">
-                      <strong>
-                        {links.length.toString().padStart(2, "0")}
-                      </strong>
+                      <strong>{links.length}</strong>
                       <span>link tersimpan</span>
                       <div className="stat-art art-bookmark">
                         <Bookmark size={28} />
@@ -1228,9 +1226,7 @@ export default function App() {
                     </div>
                     <div className="stat-bottom">
                       <strong>
-                        {String(
-                          new Set(links.map((l) => l.category)).size,
-                        ).padStart(2, "0")}
+                        {new Set(links.map((l) => l.category)).size}
                       </strong>
                       <span>topik dijelajahi</span>
                       <div className="stat-art art-folder">
