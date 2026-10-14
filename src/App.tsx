@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type FormEvent,
@@ -146,6 +147,17 @@ function formatAccountDate(value: string): string {
 }
 
 export default function App() {
+  const filterDrag = useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    lastX: number;
+    lastTime: number;
+    velocity: number;
+    moved: boolean;
+  } | null>(null);
+  const filterInertiaFrame = useRef<number | null>(null);
+  const suppressFilterClick = useRef(false);
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [vaultKeys, setVaultKeys] = useState<VaultKeys | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
@@ -182,6 +194,15 @@ export default function App() {
       ...new Set([...categoryOptions, ...links.map((link) => link.category)]),
     ],
     [links],
+  );
+
+  useEffect(
+    () => () => {
+      if (filterInertiaFrame.current !== null) {
+        cancelAnimationFrame(filterInertiaFrame.current);
+      }
+    },
+    [],
   );
   const mascotSpeech =
     links.length >= 3
@@ -1010,6 +1031,83 @@ export default function App() {
                       <div
                         className="filter-chips"
                         aria-label="Filter kategori"
+                        onPointerDown={(event) => {
+                          if (!event.isPrimary || event.button !== 0) return;
+                          if (filterInertiaFrame.current !== null) {
+                            cancelAnimationFrame(filterInertiaFrame.current);
+                            filterInertiaFrame.current = null;
+                          }
+                          filterDrag.current = {
+                            pointerId: event.pointerId,
+                            startX: event.clientX,
+                            startScrollLeft: event.currentTarget.scrollLeft,
+                            lastX: event.clientX,
+                            lastTime: event.timeStamp,
+                            velocity: 0,
+                            moved: false,
+                          };
+                        }}
+                        onPointerMove={(event) => {
+                          const drag = filterDrag.current;
+                          if (!drag || drag.pointerId !== event.pointerId) {
+                            return;
+                          }
+                          const distance = event.clientX - drag.startX;
+                          if (!drag.moved && Math.abs(distance) > 6) {
+                            drag.moved = true;
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                          }
+                          if (!drag.moved) return;
+
+                          const elapsed = Math.max(
+                            event.timeStamp - drag.lastTime,
+                            1,
+                          );
+                          drag.velocity = -(event.clientX - drag.lastX) / elapsed;
+                          drag.lastX = event.clientX;
+                          drag.lastTime = event.timeStamp;
+                          event.currentTarget.scrollLeft =
+                            drag.startScrollLeft - distance;
+                        }}
+                        onPointerUp={(event) => {
+                          const drag = filterDrag.current;
+                          if (!drag || drag.pointerId !== event.pointerId) {
+                            return;
+                          }
+                          filterDrag.current = null;
+                          if (!drag.moved) return;
+
+                          suppressFilterClick.current = true;
+                          let velocity = Math.max(
+                            -1.5,
+                            Math.min(1.5, drag.velocity),
+                          );
+                          let previousTime = event.timeStamp;
+                          const scrollElement = event.currentTarget;
+                          const coast = (time: number) => {
+                            const elapsed = Math.min(time - previousTime, 32);
+                            previousTime = time;
+                            scrollElement.scrollLeft += velocity * elapsed;
+                            velocity *= Math.pow(0.94, elapsed / 16);
+                            if (Math.abs(velocity) > 0.02) {
+                              filterInertiaFrame.current =
+                                requestAnimationFrame(coast);
+                            } else {
+                              filterInertiaFrame.current = null;
+                            }
+                          };
+                          filterInertiaFrame.current =
+                            requestAnimationFrame(coast);
+                        }}
+                        onPointerCancel={() => {
+                          filterDrag.current = null;
+                        }}
+                        onClickCapture={(event) => {
+                          if (!suppressFilterClick.current) return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          suppressFilterClick.current = false;
+                        }}
                       >
                         {filters.map((item) => (
                           <button

@@ -366,7 +366,13 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   gap: 8px;
   margin: 14px -20px 0;
   padding: 2px 20px 6px;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;   /* momentum scroll di iOS */
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;      /* swipe tidak ikut menggeser halaman */
+  scroll-padding: 0 20px;
   scrollbar-width: none;
 }
 .filter-chips::-webkit-scrollbar { display: none; }
@@ -732,7 +738,13 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   .stats-row { grid-template-columns: 1fr 1fr; }
   .encouragement { grid-column: 1 / -1; min-height: 88px; }
   .encouragement p { max-width: none; }
-  .filter-chips { margin: 14px -16px 0; padding: 2px 16px 6px; }
+  .filter-chips {
+    margin: 14px -16px 0;
+    padding: 2px 16px 6px;
+    scroll-padding: 0 16px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
   .nav-item { padding: 0 12px; }
   .nav-item span { display: none; }
   .nav-item.active span { display: inline; }
