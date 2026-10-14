@@ -9,6 +9,7 @@ Manuknest is a personal archive for saving links and finding them again. This fo
 - Share selected links in Explore, where signed-in users can like them and visit the sharer's profile.
 - View a profile with the account's shared-link and like counts, username, and optional YouTube Music player.
 - Use the same frontend in a browser or as the Manuknest Android app.
+- Click or tap Tiko, the mascot in the nest, to make it fly.
 
 New link contents are encrypted in the browser before they are sent to the API. The app derives its encryption keys from the account password and server-provided salt. Link URLs, titles, notes, categories, collections, and reading status are encrypted. A keyed URL hash lets the server find duplicate links without storing the URL in plaintext. Links a user explicitly shares expose their selected URL and title to signed-in users; private fields remain encrypted. Read more about the design and its limitations in the root [README](../README.md#archive-encryption-and-migration).
 
