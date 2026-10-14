@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Bookmark,
   CalendarDays,
@@ -24,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import Mascot from "./components/Mascot";
+import CardStack from "./components/CardStack";
 import {
   ApiError,
   request,
@@ -58,7 +52,7 @@ type SavedLink = {
 };
 const sessionKey = "tumpuk.session";
 // Warna pastel kartu, diputar berdasarkan id supaya tiap link punya "wajah" sendiri.
-const tones = ["#a9daf5", "#bdeccf", "#d3c4f7", "#fbc4e0", "#ffe58f"];
+const tones = ["#fbc4ea", "#ffe3a3", "#bfe8fb", "#cdf7b5", "#dccdfa"];
 const categoryOptions = [
   "Tutorial",
   "Desain",
@@ -138,6 +132,23 @@ function toSavedLink(
     shared,
     createdAt,
   };
+}
+
+function formatShortDate(value: string): string {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function formatAccountDate(value: string): string {
@@ -1055,7 +1066,9 @@ export default function App() {
                           const distance = event.clientX - drag.startX;
                           if (!drag.moved && Math.abs(distance) > 6) {
                             drag.moved = true;
-                            event.currentTarget.setPointerCapture(event.pointerId);
+                            event.currentTarget.setPointerCapture(
+                              event.pointerId,
+                            );
                           }
                           if (!drag.moved) return;
 
@@ -1063,7 +1076,8 @@ export default function App() {
                             event.timeStamp - drag.lastTime,
                             1,
                           );
-                          drag.velocity = -(event.clientX - drag.lastX) / elapsed;
+                          drag.velocity =
+                            -(event.clientX - drag.lastX) / elapsed;
                           drag.lastX = event.clientX;
                           drag.lastTime = event.timeStamp;
                           event.currentTarget.scrollLeft =
@@ -1170,92 +1184,77 @@ export default function App() {
                   {isPopularView &&
                     !popularLoading &&
                     !popularError &&
-                    popularLinks.map((link) => (
-                      <article
-                        className="popular-card"
-                        key={link.id}
-                        style={
-                          {
-                            "--tone": tones[link.id % tones.length],
-                          } as CSSProperties
-                        }
-                      >
-                        <div className="popular-card-heading">
-                          <div>
-                            <span className="eyebrow muted">TAUTAN PUBLIK</span>
-                            <h3>{link.title}</h3>
-                          </div>
-                          <button
-                            className={
-                              link.likedByMe
-                                ? "popular-like liked"
-                                : "popular-like"
-                            }
-                            aria-label={
-                              link.isOwner
-                                ? `Link milikmu, ${link.likeCount} suka`
-                                : link.likedByMe
-                                  ? `Hapus sukamu, ${link.likeCount} suka`
-                                  : `Sukai link, ${link.likeCount} suka`
-                            }
-                            aria-pressed={link.likedByMe}
-                            disabled={
-                              link.isOwner || likingPopularID === link.id
-                            }
-                            onClick={() => void togglePopularLike(link)}
-                          >
-                            <Heart
-                              size={17}
-                              fill={link.likedByMe ? "currentColor" : "none"}
-                            />
-                            <span>{link.likeCount}</span>
-                          </button>
-                        </div>
-                        <a
-                          className="popular-url"
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {link.url}
-                          <ExternalLink size={14} />
-                        </a>
-                        {link.isOwner && (
-                          <span className="popular-owner-note">
-                            Link ini kamu bagikan
-                          </span>
-                        )}
-                      </article>
-                    ))}
-                  {!isPopularView &&
-                    displayedLinks.map((link) => (
-                      <article
-                        className="link-card"
-                        key={link.id}
-                        style={{ "--tone": link.color } as CSSProperties}
-                      >
-                        <div
-                          className="favicon"
-                          style={{ background: link.color }}
-                        >
-                          {link.initials}
-                        </div>
-                        <div className="link-content">
-                          <div className="link-title-row">
-                            <h3>{link.title}</h3>
-                            <span className="category-tag">
-                              {link.category}
-                            </span>
-                            {link.shared && (
-                              <span className="shared-tag">Dibagikan</span>
-                            )}
-                          </div>
-                          <div className="link-url">{link.url}</div>
-                          <p>{link.note}</p>
-                        </div>
-                        <div className="link-card-actions">
+                    popularLinks.length > 0 && (
+                      <CardStack
+                        items={popularLinks.map((link) => ({
+                          id: link.id,
+                          tone: tones[link.id % tones.length],
+                          icon: hostOf(link.url)[0]?.toUpperCase() ?? "?",
+                          title: link.title,
+                          subtitle: hostOf(link.url),
+                          aside: (
+                            <button
+                              className={
+                                link.likedByMe
+                                  ? "popular-like liked"
+                                  : "popular-like"
+                              }
+                              aria-label={
+                                link.isOwner
+                                  ? `Link milikmu, ${link.likeCount} suka`
+                                  : link.likedByMe
+                                    ? `Hapus sukamu, ${link.likeCount} suka`
+                                    : `Sukai link, ${link.likeCount} suka`
+                              }
+                              aria-pressed={link.likedByMe}
+                              disabled={
+                                link.isOwner || likingPopularID === link.id
+                              }
+                              onClick={() => void togglePopularLike(link)}
+                            >
+                              <Heart
+                                size={17}
+                                fill={link.likedByMe ? "currentColor" : "none"}
+                              />
+                              <span>{link.likeCount}</span>
+                            </button>
+                          ),
+                          body: (
+                            <a
+                              className="stack-url"
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {link.url}
+                            </a>
+                          ),
+                          footer: (
+                            <>
+                              <span className="stack-pill">
+                                {formatShortDate(link.createdAt)}
+                              </span>
+                              {link.isOwner && (
+                                <span className="stack-pill soft">
+                                  Link ini kamu bagikan
+                                </span>
+                              )}
+                            </>
+                          ),
+                        }))}
+                      />
+                    )}
+                  {!isPopularView && displayedLinks.length > 0 && (
+                    <CardStack
+                      items={displayedLinks.map((link) => ({
+                        id: link.id,
+                        tone: link.color,
+                        icon: link.initials,
+                        title: link.title,
+                        subtitle: link.vault.description.trim(),
+                        aside: (
                           <a
-                            className="open-link"
+                            className="stack-round"
                             href={link.href}
                             target="_blank"
                             rel="noreferrer"
@@ -1263,18 +1262,44 @@ export default function App() {
                           >
                             <ExternalLink size={16} />
                           </a>
-                          <button
-                            className="delete-link-button"
-                            type="button"
-                            aria-label={`Hapus ${link.title}`}
-                            disabled={deletingLinkID !== null}
-                            onClick={() => void deleteSavedLink(link)}
+                        ),
+                        body: (
+                          <a
+                            className="stack-url"
+                            href={link.href}
+                            target="_blank"
+                            rel="noreferrer"
                           >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                            {link.url}
+                          </a>
+                        ),
+                        footer: (
+                          <>
+                            <span className="stack-pill">
+                              {formatShortDate(link.createdAt)}
+                            </span>
+                            <span className="stack-pill soft">
+                              {link.category}
+                            </span>
+                            {link.shared && (
+                              <span className="stack-pill soft">Dibagikan</span>
+                            )}
+                            <div className="stack-actions">
+                              <button
+                                className="stack-round danger"
+                                type="button"
+                                aria-label={`Hapus ${link.title}`}
+                                disabled={deletingLinkID !== null}
+                                onClick={() => void deleteSavedLink(link)}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </>
+                        ),
+                      }))}
+                    />
+                  )}
                   {isSavedView &&
                     displayedLinks.length === 0 &&
                     links.length > 0 &&

@@ -770,3 +770,117 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* =========================================================
+   CARD STACK ala "recent apps" (Home, Saved, Terpopuler)
+   Semua kartu terbuka & saling menimpa; efek 3D diatur CardStack.tsx.
+   ========================================================= */
+.link-list { gap: 0; padding: 0 0 8px; }
+.stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-top: 2px;
+  perspective: 1100px;
+  perspective-origin: 50% 40%;
+}
+.stack-item {
+  position: relative;
+  margin-top: -22px;       /* kartu berikutnya menimpa ujung bawah kartu sebelumnya */
+  will-change: transform;
+}
+.stack-item:first-child { margin-top: 0; }
+.stack-card {
+  position: relative;
+  padding: 20px 20px 44px;  /* 22px terakhir tertutup kartu berikutnya */
+  background: var(--tone, var(--sky));
+  border-radius: 30px;
+  color: var(--ink);
+  box-shadow: 0 -8px 22px rgba(20, 18, 58, .09);
+}
+.stack-item:last-child .stack-card { padding-bottom: 20px; }
+.stack-head { display: flex; align-items: center; gap: 8px; }
+.stack-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; min-height: 60px; }
+.stack-icon {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .55);
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
+}
+.stack-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.stack-title { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack-sub { color: var(--ink-2); font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack-aside { flex: none; display: flex; align-items: center; }
+.stack-body { padding-top: 14px; }
+.stack-note { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; }
+.stack-url {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.stack-url svg { flex: none; }
+.stack-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.stack-pill { padding: 9px 16px; border-radius: 999px; background: #fff; font-size: 14px; font-weight: 800; }
+.stack-pill.soft { background: rgba(255, 255, 255, .5); }
+.stack-actions { margin-left: auto; display: flex; gap: 8px; }
+.stack-round {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .6);
+  color: var(--ink);
+  text-decoration: none;
+}
+.stack-round:hover:not(:disabled) { background: #fff; }
+.stack-round.danger { color: var(--coral); }
+.stack-round:disabled { cursor: wait; opacity: .6; }
+.stack-aside .popular-like { border: 0; background: rgba(255, 255, 255, .6); }
+.stack-aside .popular-like.liked { background: #fff; color: var(--coral); }
+@media (max-width: 520px) {
+  .stack-card { padding: 18px 16px 44px; border-radius: 28px; }
+  .stack-item:last-child .stack-card { padding-bottom: 18px; }
+  .stack-icon { width: 54px; height: 54px; font-size: 22px; }
+  .stack-title { font-size: 16px; }
+}
+
+/* ----- Mode collapsible (default): kartu bisa dibuka/ditutup ----- */
+.stack-collapsible .stack-item { margin-top: -28px; scroll-margin-bottom: 120px; }
+.stack-collapsible .stack-item:first-child { margin-top: 0; }
+.stack-collapsible .stack-item.is-open { z-index: 2; }
+.stack-collapsible .stack-card { padding-bottom: 54px; transform-origin: 50% 40%; }
+.stack-collapsible .stack-item:last-child .stack-card { padding-bottom: 20px; }
+.stack-collapsible .stack-item.is-open .stack-card {
+  padding-bottom: 22px;
+  transform: rotate(-1.6deg);
+  box-shadow: 0 16px 34px rgba(20, 18, 58, .16);
+}
+.stack-toggle { min-height: 64px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+.stack-chevron {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .55);
+  transition: transform .35s cubic-bezier(.2, .9, .25, 1);
+}
+.stack-item.is-open .stack-chevron { transform: rotate(180deg); }
+.stack-collapse { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .stack-chevron { transition: none; } }
