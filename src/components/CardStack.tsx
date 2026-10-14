@@ -17,6 +17,7 @@ export type StackItem = {
   icon: ReactNode;
   title: string;
   subtitle: string;
+  byline?: ReactNode;
   /** elemen di kanan header (tombol buka / suka). Jangan taruh <button> di dalam toggle. */
   aside?: ReactNode;
   /** isi kartu (muncul saat kartu dibuka, atau selalu terlihat bila collapsible={false}) */
@@ -216,6 +217,7 @@ function StackCard({
           )}
           {item.aside && <div className="stack-aside">{item.aside}</div>}
         </div>
+        {item.byline && <div className="stack-byline">{item.byline}</div>}
         {collapsible ? (
           <Collapse open={open} id={bodyId}>
             {content}

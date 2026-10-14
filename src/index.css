@@ -679,6 +679,19 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 }
 .profile-edit-button:hover { background: var(--sky-soft); }
 .profile-feedback { margin: 16px 0 0; color: var(--ink); font-size: 13px; font-weight: 800; text-align: center; }
+.shared-profile-back { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 0 12px; border: 2px solid var(--ink); border-radius: 14px; background: #fff; color: var(--ink); font-size: 13px; font-weight: 800; }
+.shared-profile-back:hover { background: var(--sky-soft); }
+.shared-profile-links { margin-top: 28px; }
+.shared-profile-links h2 { margin: 0 0 12px; font-family: var(--display); font-size: 22px; font-weight: 600; }
+.shared-profile-links ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.shared-profile-links li { min-width: 0; }
+.shared-profile-links li > a { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border: 2px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); text-decoration: none; }
+.shared-profile-links li > a:hover { background: var(--sky-soft); }
+.shared-profile-links li > a > svg { flex: 0 0 auto; }
+.shared-profile-link-copy { min-width: 0; display: grid; gap: 4px; }
+.shared-profile-link-copy strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.shared-profile-link-copy span { color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+.shared-profile-empty { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
 .profile-edit-form { display: grid; gap: 14px; margin-top: 24px; padding: 20px; border: 2px solid var(--ink); border-radius: 20px; background: var(--sky-soft); }
 .profile-edit-form h2 { margin: 0; font-family: var(--display); font-size: 22px; font-weight: 600; }
 .profile-edit-form .field-label { margin: 0; }
@@ -846,6 +859,9 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .stack-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .stack-title { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stack-sub { color: var(--ink-2); font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack-byline { margin: 0 4px 0 74px; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
+.shared-author-link { min-height: 44px; padding: 0 2px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 800; text-decoration: underline; text-decoration-color: var(--coral); text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.shared-author-link:hover { color: var(--coral); }
 .stack-aside { flex: none; display: flex; align-items: center; }
 .stack-body { padding-top: 14px; }
 .stack-note { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; }

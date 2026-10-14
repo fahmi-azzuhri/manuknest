@@ -33,10 +33,22 @@ export type PopularLink = {
   id: number
   url: string
   title: string
+  username: string
   likeCount: number
   likedByMe: boolean
   isOwner: boolean
   createdAt: string
+}
+
+export type SharedProfile = {
+  username: string
+  musicVideoId: string
+  links: Array<{
+    id: number
+    url: string
+    title: string
+    createdAt: string
+  }>
 }
 
 export type User = {

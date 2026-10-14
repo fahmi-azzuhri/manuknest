@@ -20,6 +20,7 @@ import {
 import Mascot from "./components/Mascot";
 import CardStack from "./components/CardStack";
 import ProfileMusicPlayer from "./components/ProfileMusicPlayer";
+import SharedProfilePage from "./components/SharedProfilePage";
 import {
   ApiError,
   request,
@@ -207,6 +208,7 @@ export default function App() {
   const [note, setNote] = useState("");
   const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
+  const [sharedProfileUsername, setSharedProfileUsername] = useState("");
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -345,7 +347,7 @@ export default function App() {
   }, [session, reloadLinks, vaultKeys]);
 
   useEffect(() => {
-    if (!session || activeNav !== "Explore") return;
+    if (!session || activeNav !== "Explore" || sharedProfileUsername) return;
     let active = true;
     setPopularLoading(true);
     setPopularError("");
@@ -373,7 +375,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [session, activeNav, reloadPopular]);
+  }, [session, activeNav, reloadPopular, sharedProfileUsername]);
 
   useEffect(() => {
     if (!session || activeNav !== "Profile") return;
@@ -546,6 +548,7 @@ export default function App() {
   const isSavedView = activeNav === "Saved";
   const isPopularView = activeNav === "Explore";
   const isProfileView = activeNav === "Profile";
+  const isSharedProfileView = sharedProfileUsername !== "";
   const visibleLinks = useMemo(
     () =>
       links.filter(
@@ -568,22 +571,31 @@ export default function App() {
   }
 
   function openHome() {
+    setSharedProfileUsername("");
     setActiveNav("Home");
     setQuery("");
     setActiveFilter("Semua");
   }
 
   function openArchive() {
+    setSharedProfileUsername("");
     setActiveNav("Saved");
     setQuery("");
     setActiveFilter("Semua");
   }
 
   function openPopular() {
+    setSharedProfileUsername("");
+    setActiveNav("Explore");
+  }
+
+  function openSharedProfile(username: string) {
+    setSharedProfileUsername(username);
     setActiveNav("Explore");
   }
 
   function openProfile() {
+    setSharedProfileUsername("");
     setActiveNav("Profile");
     setProfileEditOpen(false);
     setProfileSaveError("");
@@ -1001,7 +1013,13 @@ export default function App() {
         </header>
 
         <main>
-          {isProfileView ? (
+          {isSharedProfileView ? (
+            <SharedProfilePage
+              username={sharedProfileUsername}
+              token={session.token}
+              onBack={openPopular}
+            />
+          ) : isProfileView ? (
             <section className="profile-page" aria-labelledby="profile-title">
               <header className="profile-hero">
                 <div className="profile-avatar" aria-hidden="true">
@@ -1431,6 +1449,22 @@ export default function App() {
                           icon: hostOf(link.url)[0]?.toUpperCase() ?? "?",
                           title: link.title,
                           subtitle: hostOf(link.url),
+                          byline: link.username ? (
+                            <>
+                              Dibagikan oleh{" "}
+                              <button
+                                className="shared-author-link"
+                                type="button"
+                                onClick={() =>
+                                  openSharedProfile(link.username)
+                                }
+                              >
+                                @{link.username}
+                              </button>
+                            </>
+                          ) : (
+                            "Dibagikan oleh pengguna Manuknest"
+                          ),
                           aside: (
                             <button
                               className={
