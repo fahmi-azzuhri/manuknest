@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from "react";
 import {
   Bookmark,
   CalendarDays,
@@ -50,6 +56,8 @@ type SavedLink = {
   createdAt: string;
 };
 const sessionKey = "tumpuk.session";
+// Warna pastel kartu, diputar berdasarkan id supaya tiap link punya "wajah" sendiri.
+const tones = ["#a9daf5", "#bdeccf", "#d3c4f7", "#fbc4e0", "#ffe58f"];
 const categoryOptions = [
   "Tutorial",
   "Desain",
@@ -123,7 +131,7 @@ function toSavedLink(
     category:
       vault.tags[0] === "Belajar" ? "Tutorial" : (vault.tags[0] ?? "Tutorial"),
     note: vault.description || "Belum ada catatan.",
-    color: "#e4e8d8",
+    color: tones[id % tones.length],
     initials: vault.domain[0]?.toUpperCase() ?? "?",
     vault,
     shared,
@@ -790,7 +798,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
+    <div className="app-root">
       <div className="app-shell">
         <header className="topbar">
           <a
@@ -957,11 +965,13 @@ export default function App() {
                           : "BARU DISIMPAN"}
                     </div>
                     <h2>
-                      {isSavedView
-                        ? "Link tersimpan"
-                        : isPopularView
-                          ? "Terpopuler"
-                          : "Link terbaru"}{" "}
+                      <span className="hl">
+                        {isSavedView
+                          ? "Link tersimpan"
+                          : isPopularView
+                            ? "Terpopuler"
+                            : "Link terbaru"}
+                      </span>{" "}
                       {isSavedView ? (
                         <span className="count">{links.length}</span>
                       ) : isPopularView ? (
@@ -1063,7 +1073,15 @@ export default function App() {
                     !popularLoading &&
                     !popularError &&
                     popularLinks.map((link) => (
-                      <article className="popular-card" key={link.id}>
+                      <article
+                        className="popular-card"
+                        key={link.id}
+                        style={
+                          {
+                            "--tone": tones[link.id % tones.length],
+                          } as CSSProperties
+                        }
+                      >
                         <div className="popular-card-heading">
                           <div>
                             <span className="eyebrow muted">TAUTAN PUBLIK</span>
@@ -1113,7 +1131,11 @@ export default function App() {
                     ))}
                   {!isPopularView &&
                     displayedLinks.map((link) => (
-                      <article className="link-card" key={link.id}>
+                      <article
+                        className="link-card"
+                        key={link.id}
+                        style={{ "--tone": link.color } as CSSProperties}
+                      >
                         <div
                           className="favicon"
                           style={{ background: link.color }}
