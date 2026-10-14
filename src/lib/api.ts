@@ -1,121 +1,135 @@
-export type ReadStatus = 'unread' | 'reading' | 'done'
+export type ReadStatus = "unread" | "reading" | "done";
 
 export type Tag = {
-  id: number
-  name: string
-}
+  id: number;
+  name: string;
+};
 
 export type Collection = {
-  id: number
-  name: string
-}
+  id: number;
+  name: string;
+};
 
 export type LinkItem = {
-  id: number
-  urlHash: string
-  ciphertext: string
-  shared: boolean
-  createdAt: string
+  id: number;
+  urlHash: string;
+  ciphertext: string;
+  shared: boolean;
+  createdAt: string;
   legacy?: {
-    url: string
-    title: string
-    description: string
-    domain: string
-    faviconUrl: string
-    readStatus: ReadStatus
-    metadataStatus: 'pending' | 'ready' | 'unavailable'
-    tags: Array<{ name: string }>
-    collections: Array<{ name: string }>
-  }
-}
+    url: string;
+    title: string;
+    description: string;
+    domain: string;
+    faviconUrl: string;
+    readStatus: ReadStatus;
+    metadataStatus: "pending" | "ready" | "unavailable";
+    tags: Array<{ name: string }>;
+    collections: Array<{ name: string }>;
+  };
+};
 
 export type PopularLink = {
-  id: number
-  url: string
-  title: string
-  username: string
-  likeCount: number
-  likedByMe: boolean
-  isOwner: boolean
-  createdAt: string
-}
+  id: number;
+  url: string;
+  title: string;
+  username: string;
+  likeCount: number;
+  likedByMe: boolean;
+  isOwner: boolean;
+  createdAt: string;
+};
 
 export type SharedProfile = {
-  username: string
-  musicVideoId: string
+  username: string;
+  musicVideoId: string;
   links: Array<{
-    id: number
-    url: string
-    title: string
-    createdAt: string
-  }>
-}
+    id: number;
+    url: string;
+    title: string;
+    createdAt: string;
+  }>;
+};
 
 export type User = {
-  id: number
-  email: string
-  username: string
-  musicVideoId: string
-  createdAt: string
-  encryptionSalt: string
-  encryptionCheck: string
-}
+  id: number;
+  email: string;
+  username: string;
+  musicVideoId: string;
+  createdAt: string;
+  encryptionSalt: string;
+  encryptionCheck: string;
+};
 
 export type ProfileStats = {
-  sharedLinks: number
-  likesGiven: number
-  likesReceived: number
-}
+  sharedLinks: number;
+  likesGiven: number;
+  likesReceived: number;
+};
 
-type RequestOptions = Omit<RequestInit, 'body'> & {
-  token?: string
-  body?: unknown
-}
+type RequestOptions = Omit<RequestInit, "body"> & {
+  token?: string;
+  body?: unknown;
+};
 
 export class ApiError extends Error {
-  status: number
+  status: number;
 
   constructor(message: string, status: number) {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
   }
 }
 
-const baseURL = import.meta.env.VITE_API_URL ?? ''
+const baseURL = import.meta.env.VITE_API_URL ?? "";
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers = new Headers(options.headers)
+export async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const headers = new Headers(options.headers);
   if (options.body !== undefined) {
-    headers.set('Content-Type', 'application/json')
+    headers.set("Content-Type", "application/json");
   }
   if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`)
+    headers.set("Authorization", `Bearer ${options.token}`);
   }
-  let response: Response
+  let response: Response;
   try {
     response = await fetch(`${baseURL}${path}`, {
       ...options,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    })
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
   } catch {
-    throw new ApiError('Server belum bisa dihubungi. Pastikan API Manuknest berjalan, lalu coba lagi.', 0)
+    throw new ApiError(
+      "Server belum bisa dihubungi. Pastikan API Manuknest berjalan, lalu coba lagi.",
+      0,
+    );
   }
   if (response.status === 204) {
-    return undefined as T
+    return undefined as T;
   }
-  let payload: unknown
+  let payload: unknown;
   try {
-    payload = await response.json()
+    payload = await response.json();
   } catch {
-    throw new ApiError(`Server mengembalikan respons ${response.status} yang tidak dapat dibaca.`, response.status)
+    throw new ApiError(
+      `Server mengembalikan respons ${response.status} yang tidak dapat dibaca.`,
+      response.status,
+    );
   }
   if (!response.ok) {
-    const message = payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
-      ? payload.error
-      : 'Permintaan belum berhasil. Coba lagi.'
-    throw new ApiError(message, response.status)
+    const message =
+      payload &&
+      typeof payload === "object" &&
+      "error" in payload &&
+      typeof payload.error === "string"
+        ? payload.error
+        : "Permintaan belum berhasil. Coba lagi.";
+    throw new ApiError(message, response.status);
   }
-  return payload as T
+  return payload as T;
 }
