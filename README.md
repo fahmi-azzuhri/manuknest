@@ -1,4 +1,6 @@
-# Manuknest Frontend
+<img width="2752" height="1536" alt="Gemini_Generated_Image_f3rnu0f3rnu0f3rn" src="https://github.com/user-attachments/assets/a7f5e9b2-bae6-4391-8e4c-7395322546f2" />
+
+# Manuknest
 
 Manuknest is a personal archive for saving links and finding them again. This folder contains the React web app and its Capacitor Android project. The Go API and database setup are documented in the [project README](../README.md).
 
@@ -98,3 +100,5 @@ npm run cap:open
 - `src/lib/vault.ts` handles link encryption, decryption, and URL lookup hashes.
 - `public/tiko/` contains the Manuknest mascot assets.
 - `android/` contains the native Android project managed by Capacitor.
+
+
