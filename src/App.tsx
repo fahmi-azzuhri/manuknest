@@ -237,7 +237,7 @@ export default function App() {
     links.length >= 3
       ? "Cuit! Ada link menarik? Simpan dulu, ya."
       : links.length === 0
-        ? "Simpan link pertama, yuk, biar Tiko bisa menetas."
+        ? "Simpan sampai 3 link agar Tiko bisa menetas."
         : `Simpan ${3 - links.length} link lagi, yuk, biar telurnya menetas.`;
 
   function showNotice(message: string, isError = false) {
@@ -806,16 +806,13 @@ export default function App() {
             <span>Manuknest</span>
           </a>
           <div className="auth-copy">
-            <div className="eyebrow muted">ARSIP TAUTAN PRIBADIMU</div>
             <h1 id="auth-title">
-              {authMode === "register"
-                ? "Buat sarangmu."
-                : "Link-link pentingmu."}
+              {authMode === "register" ? "Buat sarangmu." : "Masuk ke sarang"}
             </h1>
             <p>
               {authMode === "register"
                 ? "Daftar untuk mulai menyimpan halaman yang ingin kamu temukan lagi."
-                : "Masuk untuk melanjutkan ke koleksi link yang kamu simpan."}
+                : "Masuk untuk melanjutkan ke koleksi link yang kamu simpan"}
             </p>
           </div>
           <form className="auth-form" onSubmit={authenticate}>
