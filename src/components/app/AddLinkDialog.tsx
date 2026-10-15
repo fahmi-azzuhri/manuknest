@@ -3,17 +3,17 @@ import { Bookmark, X } from "lucide-react";
 type AddLinkDialogProps = {
   url: string;
   title: string;
-  category: string;
   note: string;
   sharePublic: boolean;
   error: string;
   isSaving: boolean;
-  categories: string[];
+  smartTags: string[];
+  selectedTags: string[];
   onUrlChange: (value: string) => void;
   onTitleChange: (value: string) => void;
-  onCategoryChange: (value: string) => void;
   onNoteChange: (value: string) => void;
   onShareChange: (value: boolean) => void;
+  onSmartTagToggle: (tag: string) => void;
   onClose: () => void;
   onSubmit: () => void;
   onClearError: () => void;
@@ -22,17 +22,17 @@ type AddLinkDialogProps = {
 export default function AddLinkDialog({
   url,
   title,
-  category,
   note,
   sharePublic,
   error,
   isSaving,
-  categories,
+  smartTags,
+  selectedTags,
   onUrlChange,
   onTitleChange,
-  onCategoryChange,
   onNoteChange,
   onShareChange,
+  onSmartTagToggle,
   onClose,
   onSubmit,
   onClearError,
@@ -55,10 +55,9 @@ export default function AddLinkDialog({
       >
         <div className="modal-head">
           <div>
-            <span className="eyebrow muted">DETAIL LINK</span>
             <h2 id="add-link-title">Simpan link</h2>
             <p className="modal-description" id="add-link-description">
-              Judul, kategori, dan catatan disimpan di arsip pribadimu.
+              Judul, tag, dan catatan disimpan di arsip pribadimu.
             </p>
           </div>
           <button
@@ -92,17 +91,23 @@ export default function AddLinkDialog({
             placeholder="Kosongkan untuk memakai nama domain"
           />
         </label>
-        <label className="field-label">
-          Kategori
-          <select
-            value={category}
-            onChange={(event) => onCategoryChange(event.target.value)}
-          >
-            {categories.map((item) => (
-              <option key={item}>{item}</option>
+        <div className="field-label smart-tag-field">
+          <span>Tag arsip</span>
+          <div className="filter-chips smart-tag-chips">
+            {smartTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className={selectedTags.includes(tag) ? "chip active" : "chip"}
+                aria-pressed={selectedTags.includes(tag)}
+                onClick={() => onSmartTagToggle(tag)}
+              >
+                {tag}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+          <small>Tag pertama yang dipilih menjadi kategori filter.</small>
+        </div>
         <label className="field-label">
           Catatan kecil{" "}
           <textarea
@@ -122,8 +127,8 @@ export default function AddLinkDialog({
             <span>
               <strong>Bagikan di Explore</strong>
               <small>
-                URL dan judul link bisa dilihat pengguna lain. Catatan,
-                kategori, dan status baca tetap privat.
+                URL, judul, dan tag terpilih bisa dilihat pengguna lain. Catatan
+                dan status baca tetap privat.
               </small>
             </span>
           </label>

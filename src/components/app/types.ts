@@ -26,6 +26,8 @@ export const categoryOptions = [
   "Tutorial",
   "Desain",
   "Tools",
+  "Development",
+  "Productivity",
   "Lagu",
   "Film",
   "Artikel",

@@ -33,6 +33,7 @@ export type PopularLink = {
   id: number;
   url: string;
   title: string;
+  tags: string[];
   username: string;
   likeCount: number;
   likedByMe: boolean;
@@ -47,6 +48,7 @@ export type SharedProfile = {
     id: number;
     url: string;
     title: string;
+    tags: string[];
     createdAt: string;
   }>;
 };

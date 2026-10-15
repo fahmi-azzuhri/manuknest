@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import SharedProfilePage from "./components/SharedProfilePage";
 import AddLinkDialog from "./components/app/AddLinkDialog";
 import AppHeader from "./components/app/AppHeader";
@@ -27,6 +27,7 @@ import {
   type ProfileStats,
   type User,
 } from "./lib/api";
+import { suggestSmartTags } from "./lib/tagging";
 import {
   createVaultCheck,
   decryptLink,
@@ -100,8 +101,7 @@ function toSavedLink(
     title: vault.title || vault.domain,
     url: `${vault.domain}${parsed.pathname}${parsed.search}`,
     href: vault.url,
-    category:
-      vault.tags[0] === "Belajar" ? "Tutorial" : (vault.tags[0] ?? "Tutorial"),
+    category: vault.tags[0] ?? "Tutorial",
     note: vault.description || "Belum ada catatan.",
     color: tones[id % tones.length],
     initials: vault.domain[0]?.toUpperCase() ?? "?",
@@ -139,9 +139,12 @@ export default function App() {
   const [noticeIsError, setNoticeIsError] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState("");
-  const [category, setCategory] = useState("Tutorial");
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
+  const [smartTags, setSmartTags] = useState<string[]>(["Tutorial"]);
+  const [selectedTags, setSelectedTags] = useState<string[]>(["Tutorial"]);
+  const tagSuggestionRequestID = useRef(0);
+  const tagSuggestionTimer = useRef<number | null>(null);
   const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState<AppNavigationItem>("Home");
   const [sharedProfileUsername, setSharedProfileUsername] = useState("");
@@ -178,7 +181,7 @@ export default function App() {
   useEffect(() => {
     if (!showAdd) return;
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setShowAdd(false);
+      if (event.key === "Escape") closeAdd();
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
@@ -491,11 +494,109 @@ export default function App() {
   const recentLinks = links.slice(0, 3);
   const displayedLinks = isSavedView ? visibleLinks : recentLinks;
 
+  function applySmartTags(
+    suggestions: string[],
+    payload: { title: string; url: string; note: string },
+  ) {
+    let nextTags = suggestions;
+    if (
+      nextTags.length === 0 ||
+      (nextTags.length === 1 && nextTags[0] === "Other")
+    ) {
+      const fallback = suggestSmartTags(payload);
+      if (!(fallback.length === 1 && fallback[0] === "Other")) {
+        nextTags = fallback;
+      }
+    }
+    if (nextTags.length === 0) nextTags = ["Other"];
+    setSmartTags(nextTags);
+    setSelectedTags((current) => {
+      const valid = current.filter((tag) => nextTags.includes(tag));
+      return valid.length > 0 ? valid : nextTags.slice(0, 3);
+    });
+  }
+
+  async function refreshSmartTags(nextUrl = url, nextTitle = title, nextNote = note) {
+    const requestID = ++tagSuggestionRequestID.current;
+    const payload = {
+      title: nextTitle,
+      url: nextUrl,
+      note: nextNote,
+    };
+    if (!session) {
+      applySmartTags(suggestSmartTags(payload), payload);
+      return;
+    }
+
+    try {
+      const suggestions = await request<string[]>("/api/tags/suggest", {
+        method: "POST",
+        token: session.token,
+        body: payload,
+      });
+      if (requestID !== tagSuggestionRequestID.current) return;
+      applySmartTags(suggestions, payload);
+    } catch {
+      if (requestID !== tagSuggestionRequestID.current) return;
+      applySmartTags(suggestSmartTags(payload), payload);
+    }
+  }
+
+  function scheduleSmartTagRefresh(
+    nextUrl: string,
+    nextTitle: string,
+    nextNote: string,
+  ) {
+    tagSuggestionRequestID.current += 1;
+    if (tagSuggestionTimer.current !== null) {
+      window.clearTimeout(tagSuggestionTimer.current);
+    }
+    tagSuggestionTimer.current = window.setTimeout(() => {
+      tagSuggestionTimer.current = null;
+      void refreshSmartTags(nextUrl, nextTitle, nextNote);
+    }, 450);
+  }
+
+  function closeAdd() {
+    tagSuggestionRequestID.current += 1;
+    if (tagSuggestionTimer.current !== null) {
+      window.clearTimeout(tagSuggestionTimer.current);
+      tagSuggestionTimer.current = null;
+    }
+    setShowAdd(false);
+  }
+
+  function toggleSmartTag(tag: string) {
+    tagSuggestionRequestID.current += 1;
+    if (tagSuggestionTimer.current !== null) {
+      window.clearTimeout(tagSuggestionTimer.current);
+      tagSuggestionTimer.current = null;
+    }
+    setSelectedTags((current) =>
+      current.includes(tag)
+        ? current.filter((value) => value !== tag)
+        : [...new Set([tag, ...current])],
+    );
+  }
+
   function openAdd(initialUrl = "") {
+    tagSuggestionRequestID.current += 1;
+    if (tagSuggestionTimer.current !== null) {
+      window.clearTimeout(tagSuggestionTimer.current);
+      tagSuggestionTimer.current = null;
+    }
     setUrl(initialUrl);
     setTitle("");
+    setNote("");
     setAddError("");
+    const suggestions = suggestSmartTags({ url: initialUrl });
+    const nextTags = suggestions.length > 0 ? suggestions : ["Other"];
+    setSmartTags(nextTags);
+    setSelectedTags(nextTags.slice(0, 3));
     setShowAdd(true);
+    if (session && initialUrl.trim()) {
+      void refreshSmartTags(initialUrl, "", "");
+    }
   }
 
   function openHome() {
@@ -634,6 +735,7 @@ export default function App() {
       setAddError("Judul untuk link yang dibagikan terlalu panjang.");
       return;
     }
+    const finalTags = selectedTags.length > 0 ? selectedTags : ["Other"];
     const vault: LinkVaultData = {
       url: normalized.url,
       title: savedTitle,
@@ -642,7 +744,7 @@ export default function App() {
       faviconUrl: "",
       readStatus: "unread",
       metadataStatus: "unavailable",
-      tags: [category],
+      tags: [...new Set(finalTags)],
       collections: [],
     };
     setAddError("");
@@ -660,7 +762,13 @@ export default function App() {
           urlHash: normalized.urlHash,
           ciphertext,
           ...(sharePublic
-            ? { share: { url: normalized.url, title: vault.title } }
+            ? {
+                share: {
+                  url: normalized.url,
+                  title: vault.title,
+                  tags: vault.tags,
+                },
+              }
             : {}),
         },
       });
@@ -677,7 +785,7 @@ export default function App() {
       setTitle("");
       setNote("");
       setSharePublic(false);
-      setShowAdd(false);
+      closeAdd();
       showNotice(
         sharePublic
           ? "Link disimpan dan dibagikan di Explore."
@@ -928,23 +1036,27 @@ export default function App() {
         <AddLinkDialog
           url={url}
           title={title}
-          category={category}
           note={note}
           sharePublic={sharePublic}
           error={addError}
           isSaving={isSaving}
-          categories={[
-            ...new Set([
-              ...categoryOptions,
-              ...links.map((link) => link.category),
-            ]),
-          ]}
-          onUrlChange={setUrl}
-          onTitleChange={setTitle}
-          onCategoryChange={setCategory}
-          onNoteChange={setNote}
+          smartTags={smartTags}
+          selectedTags={selectedTags}
+          onUrlChange={(value) => {
+            setUrl(value);
+            scheduleSmartTagRefresh(value, title, note);
+          }}
+          onTitleChange={(value) => {
+            setTitle(value);
+            scheduleSmartTagRefresh(url, value, note);
+          }}
+          onNoteChange={(value) => {
+            setNote(value);
+            scheduleSmartTagRefresh(url, title, value);
+          }}
           onShareChange={setSharePublic}
-          onClose={() => setShowAdd(false)}
+          onSmartTagToggle={toggleSmartTag}
+          onClose={closeAdd}
           onSubmit={() => void saveLink()}
           onClearError={() => setAddError("")}
         />

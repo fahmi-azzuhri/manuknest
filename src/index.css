@@ -603,6 +603,8 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .modal-head h2 { margin: 8px 0 0; font-family: var(--display); font-size: 26px; font-weight: 600; }
 .modal-description { margin: 6px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
 .field-label { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 800; }
+.smart-tag-chips { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; }
+.smart-tag-field > small { color: var(--ink-2); font-size: 12px; font-weight: 600; line-height: 1.45; }
 .field-label input, .field-label textarea, .field-label select {
   width: 100%;
   min-height: 46px;

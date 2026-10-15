@@ -116,6 +116,11 @@ function ExploreLinkCards({
         ),
         footer: (
           <>
+            {link.tags.map((tag) => (
+              <span className="stack-pill soft" key={tag}>
+                {tag}
+              </span>
+            ))}
             <span className="stack-pill">{formatShortDate(link.createdAt)}</span>
             {link.isOwner && (
               <span className="stack-pill soft">Link ini kamu bagikan</span>

@@ -101,6 +101,9 @@ export default function SharedProfilePage({
                       <span className="shared-profile-link-copy">
                         <strong>{link.title}</strong>
                         <span>{hostOf(link.url)}</span>
+                        {link.tags.length > 0 && (
+                          <span>{link.tags.join(" · ")}</span>
+                        )}
                       </span>
                       <ExternalLink size={17} aria-hidden="true" />
                     </a>
