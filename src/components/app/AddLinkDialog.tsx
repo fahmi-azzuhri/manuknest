@@ -7,6 +7,8 @@ type AddLinkDialogProps = {
   sharePublic: boolean;
   error: string;
   isSaving: boolean;
+  metadataLoading: boolean;
+  metadataError: string;
   smartTags: string[];
   selectedTags: string[];
   onUrlChange: (value: string) => void;
@@ -26,6 +28,8 @@ export default function AddLinkDialog({
   sharePublic,
   error,
   isSaving,
+  metadataLoading,
+  metadataError,
   smartTags,
   selectedTags,
   onUrlChange,
@@ -57,7 +61,8 @@ export default function AddLinkDialog({
           <div>
             <h2 id="add-link-title">Simpan link</h2>
             <p className="modal-description" id="add-link-description">
-              Judul, tag, dan catatan disimpan di arsip pribadimu.
+              Judul dan tag akan dicari otomatis saat disimpan. Kamu tetap bisa
+              mengubahnya.
             </p>
           </div>
           <button
@@ -88,8 +93,19 @@ export default function AddLinkDialog({
             value={title}
             maxLength={500}
             onChange={(event) => onTitleChange(event.target.value)}
-            placeholder="Kosongkan untuk memakai nama domain"
+            placeholder={
+              metadataLoading
+                ? "Mengambil judul halaman..."
+                : "Judul akan diisi otomatis"
+            }
           />
+          {(metadataLoading || metadataError) && (
+            <small aria-live="polite">
+              {metadataLoading
+                ? "Mengambil judul dari halaman..."
+                : metadataError}
+            </small>
+          )}
         </label>
         <div className="field-label smart-tag-field">
           <span>Tag arsip</span>
@@ -143,7 +159,10 @@ export default function AddLinkDialog({
           type="submit"
           disabled={isSaving}
         >
-          <Bookmark size={16} /> {isSaving ? "Menyimpan..." : "Simpan link"}
+          <Bookmark size={16} />{" "}
+          <span aria-live="polite">
+            {isSaving ? "Mencari judul & tag..." : "Simpan link"}
+          </span>
         </button>
       </form>
     </div>

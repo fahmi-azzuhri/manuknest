@@ -22,6 +22,7 @@ import type { AuthSession, SavedLink } from "./components/app/types";
 import {
   ApiError,
   request,
+  type LinkMetadata,
   type LinkItem,
   type PopularLink,
   type ProfileStats,
@@ -143,8 +144,18 @@ export default function App() {
   const [note, setNote] = useState("");
   const [smartTags, setSmartTags] = useState<string[]>(["Tutorial"]);
   const [selectedTags, setSelectedTags] = useState<string[]>(["Tutorial"]);
+  const [hasManualTagSelection, setHasManualTagSelection] = useState(false);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState("");
   const tagSuggestionRequestID = useRef(0);
   const tagSuggestionTimer = useRef<number | null>(null);
+  const metadataRequestID = useRef(0);
+  const metadataTimer = useRef<number | null>(null);
+  const titleWasManuallyEdited = useRef(false);
+  const autoTitle = useRef("");
+  const metadataCache = useRef<{ url: string; metadata: LinkMetadata } | null>(
+    null,
+  );
   const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState<AppNavigationItem>("Home");
   const [sharedProfileUsername, setSharedProfileUsername] = useState("");
@@ -557,12 +568,83 @@ export default function App() {
     }, 450);
   }
 
+  function cancelPendingMetadata() {
+    metadataRequestID.current += 1;
+    if (metadataTimer.current !== null) {
+      window.clearTimeout(metadataTimer.current);
+      metadataTimer.current = null;
+    }
+    setMetadataLoading(false);
+  }
+
+  async function loadLinkMetadata(nextUrl: string) {
+    const requestID = ++metadataRequestID.current;
+    const rawURL = nextUrl.trim();
+    if (!rawURL || !vaultKeys || !session) {
+      setMetadataLoading(false);
+      return;
+    }
+
+    setMetadataLoading(true);
+    setMetadataError("");
+    try {
+      const normalized = await normalizeAndHashURL(rawURL, vaultKeys);
+      const metadata = await request<LinkMetadata>("/api/links/metadata", {
+        method: "POST",
+        token: session.token,
+        body: { url: normalized.url },
+      });
+      if (requestID !== metadataRequestID.current) return;
+
+      metadataCache.current = { url: normalized.url, metadata };
+      const pageTitle = metadata.title.trim();
+      if (!pageTitle) {
+        setMetadataError("Judul halaman tidak ditemukan.");
+        return;
+      }
+      if (metadata.source === "url") {
+        setMetadataError("Judul halaman dibatasi. Judul dari alamat link dipakai.");
+      }
+      if (!titleWasManuallyEdited.current) {
+        autoTitle.current = pageTitle;
+        setTitle(pageTitle);
+        scheduleSmartTagRefresh(rawURL, pageTitle, note);
+      }
+    } catch (error) {
+      if (requestID !== metadataRequestID.current) return;
+      setMetadataError(
+        error instanceof ApiError && error.status === 405
+          ? "API belum diperbarui untuk mengambil judul. Hubungi pengelola aplikasi."
+          : "Judul halaman belum bisa diambil otomatis.",
+      );
+    } finally {
+      if (requestID === metadataRequestID.current) {
+        setMetadataLoading(false);
+      }
+    }
+  }
+
+  function scheduleLinkMetadataRefresh(nextUrl: string) {
+    metadataRequestID.current += 1;
+    if (metadataTimer.current !== null) {
+      window.clearTimeout(metadataTimer.current);
+    }
+    metadataCache.current = null;
+    setMetadataError("");
+    setMetadataLoading(Boolean(nextUrl.trim()));
+    metadataTimer.current = window.setTimeout(() => {
+      metadataTimer.current = null;
+      void loadLinkMetadata(nextUrl);
+    }, 450);
+  }
+
   function closeAdd() {
     tagSuggestionRequestID.current += 1;
     if (tagSuggestionTimer.current !== null) {
       window.clearTimeout(tagSuggestionTimer.current);
       tagSuggestionTimer.current = null;
     }
+    cancelPendingMetadata();
     setShowAdd(false);
   }
 
@@ -572,6 +654,7 @@ export default function App() {
       window.clearTimeout(tagSuggestionTimer.current);
       tagSuggestionTimer.current = null;
     }
+    setHasManualTagSelection(true);
     setSelectedTags((current) =>
       current.includes(tag)
         ? current.filter((value) => value !== tag)
@@ -585,18 +668,42 @@ export default function App() {
       window.clearTimeout(tagSuggestionTimer.current);
       tagSuggestionTimer.current = null;
     }
+    cancelPendingMetadata();
+    metadataCache.current = null;
+    titleWasManuallyEdited.current = false;
+    autoTitle.current = "";
     setUrl(initialUrl);
     setTitle("");
     setNote("");
     setAddError("");
+    setMetadataError("");
+    setHasManualTagSelection(false);
     const suggestions = suggestSmartTags({ url: initialUrl });
     const nextTags = suggestions.length > 0 ? suggestions : ["Other"];
     setSmartTags(nextTags);
     setSelectedTags(nextTags.slice(0, 3));
     setShowAdd(true);
+    if (initialUrl.trim()) {
+      void loadLinkMetadata(initialUrl);
+    }
     if (session && initialUrl.trim()) {
       void refreshSmartTags(initialUrl, "", "");
     }
+  }
+
+  function changeAddURL(value: string) {
+    setUrl(value);
+    setAddError("");
+    if (!titleWasManuallyEdited.current && title === autoTitle.current) {
+      autoTitle.current = "";
+      setTitle("");
+    }
+    scheduleSmartTagRefresh(
+      value,
+      titleWasManuallyEdited.current ? title : "",
+      note,
+    );
+    scheduleLinkMetadataRefresh(value);
   }
 
   function openHome() {
@@ -730,26 +837,87 @@ export default function App() {
       setAddError("Format link belum valid. Coba periksa lagi.");
       return;
     }
-    const savedTitle = title.trim() || normalized.domain;
-    if (sharePublic && new TextEncoder().encode(savedTitle).length > 500) {
-      setAddError("Judul untuk link yang dibagikan terlalu panjang.");
-      return;
-    }
-    const finalTags = selectedTags.length > 0 ? selectedTags : ["Other"];
-    const vault: LinkVaultData = {
-      url: normalized.url,
-      title: savedTitle,
-      description: note.trim(),
-      domain: normalized.domain,
-      faviconUrl: "",
-      readStatus: "unread",
-      metadataStatus: "unavailable",
-      tags: [...new Set(finalTags)],
-      collections: [],
-    };
     setAddError("");
     setIsSaving(true);
+    tagSuggestionRequestID.current += 1;
+    if (tagSuggestionTimer.current !== null) {
+      window.clearTimeout(tagSuggestionTimer.current);
+      tagSuggestionTimer.current = null;
+    }
     try {
+      let metadata: LinkMetadata | null = null;
+      let metadataFailed = false;
+      let metadataUnavailableStatus = 0;
+      if (metadataCache.current?.url === normalized.url) {
+        metadata = metadataCache.current.metadata;
+        metadataFailed = metadata.source === "url";
+      } else {
+        try {
+          metadata = await request<LinkMetadata>("/api/links/metadata", {
+            method: "POST",
+            token: session.token,
+            body: { url: normalized.url },
+          });
+          metadataFailed = metadata.source === "url";
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) throw error;
+          metadataFailed = true;
+          metadataUnavailableStatus =
+            error instanceof ApiError ? error.status : 0;
+        }
+      }
+
+      const customTitle = title.trim();
+      const pageTitle = metadata?.title.trim() ?? "";
+      const savedTitle = customTitle || pageTitle || normalized.domain;
+      const tagPayload = {
+        title: savedTitle,
+        url: normalized.url,
+        note: note.trim(),
+      };
+      let finalTags = selectedTags;
+      let tagSuggestionsFailed = false;
+      if (!hasManualTagSelection) {
+        try {
+          finalTags = await request<string[]>("/api/tags/suggest", {
+            method: "POST",
+            token: session.token,
+            body: tagPayload,
+          });
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) throw error;
+          tagSuggestionsFailed = true;
+          finalTags = suggestSmartTags(tagPayload);
+        }
+        if (
+          finalTags.length === 0 ||
+          (finalTags.length === 1 && finalTags[0] === "Other")
+        ) {
+          finalTags = suggestSmartTags(tagPayload);
+        }
+        finalTags = finalTags.slice(0, 3);
+      }
+      if (finalTags.length === 0) finalTags = ["Other"];
+      finalTags = [...new Set(finalTags)];
+      setTitle(savedTitle);
+      setSmartTags(finalTags);
+      setSelectedTags(finalTags);
+
+      if (sharePublic && new TextEncoder().encode(savedTitle).length > 500) {
+        setAddError("Judul untuk link yang dibagikan terlalu panjang.");
+        return;
+      }
+      const vault: LinkVaultData = {
+        url: normalized.url,
+        title: savedTitle,
+        description: note.trim(),
+        domain: normalized.domain,
+        faviconUrl: metadata?.faviconUrl ?? "",
+        readStatus: "unread",
+        metadataStatus: metadata?.source === "page" ? "ready" : "unavailable",
+        tags: finalTags,
+        collections: [],
+      };
       const ciphertext = await encryptLink(
         vault,
         normalized.urlHash,
@@ -784,12 +952,28 @@ export default function App() {
       setUrl("");
       setTitle("");
       setNote("");
+      metadataCache.current = null;
+      titleWasManuallyEdited.current = false;
+      autoTitle.current = "";
       setSharePublic(false);
       closeAdd();
+      const saveNotice = metadataFailed
+        ? metadata?.source === "url"
+          ? "Judul halaman tidak dapat dibaca. Judul dari alamat link dipakai."
+          : metadataUnavailableStatus === 405
+            ? "API belum diperbarui untuk mengambil judul otomatis. Perbarui backend API agar fitur ini berfungsi."
+            : customTitle
+              ? "Metadata halaman tidak tersedia. Judul yang kamu isi tetap digunakan."
+              : "Metadata halaman tidak tersedia. Nama domain dipakai. Link berhasil disimpan."
+        : customTitle || pageTitle
+          ? sharePublic
+            ? "Link disimpan dan dibagikan di Explore."
+            : "Link berhasil disimpan. Tiko ikut senang!"
+          : "Judul halaman tidak ditemukan, nama domain dipakai. Link berhasil disimpan.";
       showNotice(
-        sharePublic
-          ? "Link disimpan dan dibagikan di Explore."
-          : "Link berhasil disimpan. Tiko ikut senang!",
+        tagSuggestionsFailed
+          ? `${saveNotice} Saran tag lokal dipakai.`
+          : saveNotice,
       );
       openArchive();
       window.setTimeout(() => showNotice(""), 3000);
@@ -1040,13 +1224,16 @@ export default function App() {
           sharePublic={sharePublic}
           error={addError}
           isSaving={isSaving}
+          metadataLoading={metadataLoading}
+          metadataError={metadataError}
           smartTags={smartTags}
           selectedTags={selectedTags}
           onUrlChange={(value) => {
-            setUrl(value);
-            scheduleSmartTagRefresh(value, title, note);
+            changeAddURL(value);
           }}
           onTitleChange={(value) => {
+            titleWasManuallyEdited.current = true;
+            autoTitle.current = "";
             setTitle(value);
             scheduleSmartTagRefresh(url, value, note);
           }}

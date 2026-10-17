@@ -10,6 +10,13 @@ export type Collection = {
   name: string;
 };
 
+export type LinkMetadata = {
+  title: string;
+  description: string;
+  faviconUrl: string;
+  source: "page" | "url";
+};
+
 export type LinkItem = {
   id: number;
   urlHash: string;
