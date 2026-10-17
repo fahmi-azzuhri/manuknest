@@ -16,6 +16,7 @@ import HomeDashboard, {
 import LinkList from "./components/app/LinkList";
 import Notice from "./components/app/Notice";
 import ProfilePage from "./components/app/ProfilePage";
+import ReadingReminders from "./components/app/ReadingReminders";
 import { Search } from "lucide-react";
 import { categoryOptions, tones } from "./components/app/types";
 import type { AuthSession, SavedLink } from "./components/app/types";
@@ -28,6 +29,14 @@ import {
   type ProfileStats,
   type User,
 } from "./lib/api";
+import {
+  cancelAllReminderNotifications,
+  cancelReminderNotification,
+  getReminderPermission,
+  requestReminderPermission,
+  scheduleReminderNotification,
+  type ReminderPermission,
+} from "./lib/reminders";
 import { suggestSmartTags } from "./lib/tagging";
 import {
   createVaultCheck,
@@ -44,6 +53,17 @@ import {
 const sessionKey = "tumpuk.session";
 
 type AuthResponse = AuthSession;
+type Theme = "light" | "dark";
+
+const themeStorageKey = "tumpuk.theme";
+
+function initialTheme(): Theme {
+  const stored = window.localStorage.getItem(themeStorageKey);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
 
 function readSession(): AuthSession | null {
   const stored = window.sessionStorage.getItem(sessionKey);
@@ -92,6 +112,7 @@ function readSession(): AuthSession | null {
 
 function toSavedLink(
   id: number,
+  urlHash: string,
   vault: LinkVaultData,
   createdAt: string,
   shared = false,
@@ -99,6 +120,7 @@ function toSavedLink(
   const parsed = new URL(vault.url);
   return {
     id,
+    urlHash,
     title: vault.title || vault.domain,
     url: `${vault.domain}${parsed.pathname}${parsed.search}`,
     href: vault.url,
@@ -113,6 +135,7 @@ function toSavedLink(
 }
 
 export default function App() {
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [vaultKeys, setVaultKeys] = useState<VaultKeys | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
@@ -142,6 +165,9 @@ export default function App() {
   const [addError, setAddError] = useState("");
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
+  const [reminderDays, setReminderDays] = useState(0);
+  const [notificationPermission, setNotificationPermission] =
+    useState<ReminderPermission>("unknown");
   const [smartTags, setSmartTags] = useState<string[]>(["Tutorial"]);
   const [selectedTags, setSelectedTags] = useState<string[]>(["Tutorial"]);
   const [hasManualTagSelection, setHasManualTagSelection] = useState(false);
@@ -169,6 +195,7 @@ export default function App() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState("");
   const [profileSaveNotice, setProfileSaveNotice] = useState("");
+  const [clock, setClock] = useState(Date.now());
   const filters = useMemo(
     () => [
       "Semua",
@@ -183,6 +210,69 @@ export default function App() {
       : links.length === 0
         ? "Simpan sampai 3 link agar Tiko bisa menetas."
         : `Simpan ${3 - links.length} link lagi, yuk, biar telurnya menetas.`;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void getReminderPermission().then(
+      (permission) => {
+        if (active) setNotificationPermission(permission);
+      },
+      (error: unknown) => {
+        if (active) {
+          setNotificationPermission("unsupported");
+          showNotice(
+            error instanceof Error
+              ? `Status notifikasi tidak dapat dibaca: ${error.message}`
+              : "Status notifikasi tidak dapat dibaca.",
+            true,
+          );
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function syncReminderNotifications() {
+      try {
+        await Promise.all(
+          links.map((link) =>
+            link.vault.reminderAt && link.vault.readStatus !== "done"
+              ? scheduleReminderNotification(
+                  link.id,
+                  link.vault.reminderAt,
+                )
+              : cancelReminderNotification(link.id),
+          ),
+        );
+      } catch (error) {
+        if (active) {
+          showNotice(
+            error instanceof Error
+              ? `Notifikasi pengingat belum bisa dijadwalkan: ${error.message}`
+              : "Notifikasi pengingat belum bisa dijadwalkan.",
+            true,
+          );
+        }
+      }
+    }
+    void syncReminderNotifications();
+    return () => {
+      active = false;
+    };
+  }, [links]);
 
   function showNotice(message: string, isError = false) {
     setNotice(message);
@@ -224,6 +314,7 @@ export default function App() {
             decodedLinks.push(
               toSavedLink(
                 savedLink.id,
+                savedLink.urlHash,
                 vault,
                 savedLink.createdAt,
                 savedLink.shared,
@@ -257,6 +348,7 @@ export default function App() {
           decodedLinks.push(
             toSavedLink(
               savedLink.id,
+              normalized.urlHash,
               vault,
               savedLink.createdAt,
               savedLink.shared,
@@ -476,7 +568,15 @@ export default function App() {
     }
   }
 
-  function signOut() {
+  async function signOut() {
+    try {
+      await cancelAllReminderNotifications();
+    } catch (error) {
+      console.error(
+        "Gagal membatalkan notifikasi pengingat sebelum keluar.",
+        error,
+      );
+    }
     window.sessionStorage.removeItem(sessionKey);
     setSession(null);
     setVaultKeys(null);
@@ -484,6 +584,47 @@ export default function App() {
     setAuthError("");
     showNotice("");
     setLoadError("");
+  }
+
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    window.localStorage.setItem(themeStorageKey, nextTheme);
+  }
+
+  async function enableNotifications() {
+    try {
+      const permission = await requestReminderPermission();
+      setNotificationPermission(permission);
+      if (permission === "granted") {
+        await Promise.all(
+          links.map((link) =>
+            link.vault.reminderAt && link.vault.readStatus !== "done"
+              ? scheduleReminderNotification(
+                  link.id,
+                  link.vault.reminderAt,
+                )
+              : Promise.resolve(),
+          ),
+        );
+        showNotice("Notifikasi pengingat sudah diizinkan.");
+      } else if (permission === "unsupported") {
+        showNotice(
+          "Notifikasi perangkat tidak tersedia. Pengingat tetap tampil di aplikasi.",
+        );
+      } else {
+        showNotice(
+          "Izin notifikasi belum aktif. Pengingat tetap tampil di aplikasi.",
+        );
+      }
+    } catch (error) {
+      showNotice(
+        error instanceof Error
+          ? `Izin notifikasi tidak dapat diaktifkan: ${error.message}`
+          : "Izin notifikasi tidak dapat diaktifkan.",
+        true,
+      );
+    }
   }
 
   const isHome = activeNav === "Home";
@@ -504,6 +645,18 @@ export default function App() {
   );
   const recentLinks = links.slice(0, 3);
   const displayedLinks = isSavedView ? visibleLinks : recentLinks;
+  const dueReminders = links
+    .filter(
+      (link) =>
+        link.vault.readStatus !== "done" &&
+        link.vault.reminderAt &&
+        Date.parse(link.vault.reminderAt) <= clock,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(left.vault.reminderAt ?? "") -
+        Date.parse(right.vault.reminderAt ?? ""),
+    );
 
   function applySmartTags(
     suggestions: string[],
@@ -675,6 +828,7 @@ export default function App() {
     setUrl(initialUrl);
     setTitle("");
     setNote("");
+    setReminderDays(0);
     setAddError("");
     setMetadataError("");
     setHasManualTagSelection(false);
@@ -914,6 +1068,13 @@ export default function App() {
         domain: normalized.domain,
         faviconUrl: metadata?.faviconUrl ?? "",
         readStatus: "unread",
+        ...(reminderDays > 0
+          ? {
+              reminderAt: new Date(
+                Date.now() + reminderDays * 24 * 60 * 60 * 1000,
+              ).toISOString(),
+            }
+          : {}),
         metadataStatus: metadata?.source === "page" ? "ready" : "unavailable",
         tags: finalTags,
         collections: [],
@@ -943,6 +1104,7 @@ export default function App() {
       setLinks((current) => [
         toSavedLink(
           result.link.id,
+          normalized.urlHash,
           vault,
           result.link.createdAt,
           result.link.shared,
@@ -952,6 +1114,7 @@ export default function App() {
       setUrl("");
       setTitle("");
       setNote("");
+      setReminderDays(0);
       metadataCache.current = null;
       titleWasManuallyEdited.current = false;
       autoTitle.current = "";
@@ -992,6 +1155,73 @@ export default function App() {
     }
   }
 
+  async function updateSavedLink(
+    link: SavedLink,
+    vault: LinkVaultData,
+    message: string,
+  ) {
+    if (!session || !vaultKeys) return;
+    try {
+      const ciphertext = await encryptLink(vault, link.urlHash, vaultKeys);
+      await request<{ link: LinkItem }>(`/api/links/${link.id}`, {
+        method: "PATCH",
+        token: session.token,
+        body: { urlHash: link.urlHash, ciphertext },
+      });
+      setLinks((current) =>
+        current.map((item) =>
+          item.id === link.id
+            ? toSavedLink(
+                link.id,
+                link.urlHash,
+                vault,
+                link.createdAt,
+                link.shared,
+              )
+            : item,
+        ),
+      );
+      showNotice(message);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        window.sessionStorage.removeItem(sessionKey);
+        setSession(null);
+        setAuthError(error.message);
+      } else {
+        showNotice(
+          error instanceof Error
+            ? error.message
+            : "Perubahan link belum bisa disimpan.",
+          true,
+        );
+      }
+    }
+  }
+
+  function updateReadingStatus(
+    link: SavedLink,
+    status: LinkVaultData["readStatus"],
+  ) {
+    const vault = { ...link.vault, readStatus: status };
+    if (status === "done") delete vault.reminderAt;
+    void updateSavedLink(
+      link,
+      vault,
+      status === "done"
+        ? "Link ditandai selesai. Pengingatnya dihapus."
+        : "Status baca link diperbarui.",
+    );
+  }
+
+  function snoozeReminder(link: SavedLink) {
+    if (!link.vault.reminderAt || link.vault.readStatus === "done") return;
+    const vault = {
+      ...link.vault,
+      reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+    void updateSavedLink(link, vault, "Pengingat ditunda 1 hari.");
+  }
+
   async function deleteSavedLink(link: SavedLink) {
     if (!session || deletingLinkID !== null) return;
     if (
@@ -1009,6 +1239,17 @@ export default function App() {
       });
       setLinks((current) => current.filter((item) => item.id !== link.id));
       if (link.shared) setReloadPopular((current) => current + 1);
+      try {
+        await cancelReminderNotification(link.id);
+      } catch (error) {
+        showNotice(
+          error instanceof Error
+            ? `Link dihapus, tetapi notifikasinya belum bisa dibatalkan: ${error.message}`
+            : "Link dihapus, tetapi notifikasinya belum bisa dibatalkan.",
+          true,
+        );
+        return;
+      }
       showNotice(`"${link.title}" dihapus dari arsip.`);
       window.setTimeout(() => showNotice(""), 3000);
     } catch (error) {
@@ -1059,7 +1300,7 @@ export default function App() {
         error={authError}
         onSubmit={unlockVault}
         onPasswordChange={setAuthPassword}
-        onSignOut={signOut}
+        onSignOut={() => void signOut()}
       />
     );
   }
@@ -1073,8 +1314,10 @@ export default function App() {
       <div className="app-shell">
         <AppHeader
           email={session.user.email}
+          theme={theme}
           onHome={openHome}
-          onSignOut={signOut}
+          onToggleTheme={toggleTheme}
+          onSignOut={() => void signOut()}
         />
 
         <main>
@@ -1125,6 +1368,15 @@ export default function App() {
                   message={notice}
                   isError={noticeIsError}
                   onClose={() => showNotice("")}
+                />
+              )}
+              {!isPopularView && (
+                <ReadingReminders
+                  links={dueReminders}
+                  onSnooze={snoozeReminder}
+                  onMarkFinished={(link) =>
+                    updateReadingStatus(link, "done")
+                  }
                 />
               )}
 
@@ -1195,6 +1447,8 @@ export default function App() {
                   onOpenArchive={openArchive}
                   onOpenSharedProfile={openSharedProfile}
                   onTogglePopularLike={(link) => void togglePopularLike(link)}
+                  onReadingStatusChange={updateReadingStatus}
+                  onSnoozeReminder={snoozeReminder}
                   onDeleteLink={(link) => void deleteSavedLink(link)}
                   onResetSearch={() => {
                     setQuery("");
@@ -1222,6 +1476,8 @@ export default function App() {
           title={title}
           note={note}
           sharePublic={sharePublic}
+          reminderDays={reminderDays}
+          notificationPermission={notificationPermission}
           error={addError}
           isSaving={isSaving}
           metadataLoading={metadataLoading}
@@ -1241,6 +1497,8 @@ export default function App() {
             setNote(value);
             scheduleSmartTagRefresh(url, title, value);
           }}
+          onReminderDaysChange={setReminderDays}
+          onRequestNotifications={() => void enableNotifications()}
           onShareChange={setSharePublic}
           onSmartTagToggle={toggleSmartTag}
           onClose={closeAdd}

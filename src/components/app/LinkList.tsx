@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ExternalLink, Heart, Trash2 } from "lucide-react";
 import CardStack from "../CardStack";
 import type { PopularLink } from "../../lib/api";
+import type { LinkVaultData } from "../../lib/vault";
 import type { SavedLink } from "./types";
 import { formatShortDate, hostOf, tones } from "./types";
 
@@ -24,6 +25,11 @@ type LinkListProps = {
   onOpenArchive: () => void;
   onOpenSharedProfile: (username: string) => void;
   onTogglePopularLike: (link: PopularLink) => void;
+  onReadingStatusChange: (
+    link: SavedLink,
+    status: LinkVaultData["readStatus"],
+  ) => void;
+  onSnoozeReminder: (link: SavedLink) => void;
   onDeleteLink: (link: SavedLink) => void;
   onResetSearch: () => void;
 };
@@ -135,10 +141,17 @@ function ExploreLinkCards({
 function SavedLinkCards({
   links,
   deletingLinkID,
+  onReadingStatusChange,
+  onSnoozeReminder,
   onDelete,
 }: {
   links: SavedLink[];
   deletingLinkID: number | null;
+  onReadingStatusChange: (
+    link: SavedLink,
+    status: LinkVaultData["readStatus"],
+  ) => void;
+  onSnoozeReminder: (link: SavedLink) => void;
   onDelete: (link: SavedLink) => void;
 }) {
   return (
@@ -174,6 +187,48 @@ function SavedLinkCards({
           <>
             <span className="stack-pill">{formatShortDate(link.createdAt)}</span>
             <span className="stack-pill soft">{link.category}</span>
+            <label className="reading-status-control">
+              <span className="visually-hidden">
+                Status baca untuk {link.title}
+              </span>
+              <select
+                value={link.vault.readStatus}
+                onChange={(event) => {
+                  const status = event.currentTarget.value;
+                  if (
+                    status === "unread" ||
+                    status === "reading" ||
+                    status === "done"
+                  ) {
+                    onReadingStatusChange(link, status);
+                  }
+                }}
+              >
+                <option value="unread">Belum dibaca</option>
+                <option value="reading">Sedang dibaca</option>
+                <option value="done">Selesai</option>
+              </select>
+            </label>
+            {link.vault.reminderAt && link.vault.readStatus !== "done" && (
+              <>
+                <span
+                  className={
+                    Date.parse(link.vault.reminderAt) <= Date.now()
+                      ? "stack-pill reminder-date overdue"
+                      : "stack-pill reminder-date"
+                  }
+                >
+                  Pengingat {formatShortDate(link.vault.reminderAt)}
+                </span>
+                <button
+                  className="reminder-snooze"
+                  type="button"
+                  onClick={() => onSnoozeReminder(link)}
+                >
+                  Tunda 1 hari
+                </button>
+              </>
+            )}
             {link.shared && (
               <span className="stack-pill soft">Dibagikan</span>
             )}
@@ -214,6 +269,8 @@ export default function LinkList({
   onOpenArchive,
   onOpenSharedProfile,
   onTogglePopularLike,
+  onReadingStatusChange,
+  onSnoozeReminder,
   onDeleteLink,
   onResetSearch,
 }: LinkListProps) {
@@ -274,6 +331,8 @@ export default function LinkList({
         <SavedLinkCards
           links={displayedLinks}
           deletingLinkID={deletingLinkID}
+          onReadingStatusChange={onReadingStatusChange}
+          onSnoozeReminder={onSnoozeReminder}
           onDelete={onDeleteLink}
         />
       )}

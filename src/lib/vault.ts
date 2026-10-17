@@ -10,6 +10,7 @@ export type LinkVaultData = {
   domain: string;
   faviconUrl: string;
   readStatus: "unread" | "reading" | "done";
+  reminderAt?: string;
   metadataStatus: "pending" | "ready" | "unavailable";
   tags: string[];
   collections: string[];
@@ -199,6 +200,9 @@ function isLinkVaultData(value: unknown): value is LinkVaultData {
     typeof link.description === "string" &&
     typeof link.domain === "string" &&
     typeof link.faviconUrl === "string" &&
+    (link.reminderAt === undefined ||
+      (typeof link.reminderAt === "string" &&
+        Number.isFinite(Date.parse(link.reminderAt)))) &&
     (link.readStatus === "unread" ||
       link.readStatus === "reading" ||
       link.readStatus === "done") &&

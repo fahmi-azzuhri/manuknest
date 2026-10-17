@@ -5,6 +5,8 @@ type AddLinkDialogProps = {
   title: string;
   note: string;
   sharePublic: boolean;
+  reminderDays: number;
+  notificationPermission: "unknown" | "granted" | "denied" | "unsupported";
   error: string;
   isSaving: boolean;
   metadataLoading: boolean;
@@ -14,6 +16,8 @@ type AddLinkDialogProps = {
   onUrlChange: (value: string) => void;
   onTitleChange: (value: string) => void;
   onNoteChange: (value: string) => void;
+  onReminderDaysChange: (value: number) => void;
+  onRequestNotifications: () => void;
   onShareChange: (value: boolean) => void;
   onSmartTagToggle: (tag: string) => void;
   onClose: () => void;
@@ -26,6 +30,8 @@ export default function AddLinkDialog({
   title,
   note,
   sharePublic,
+  reminderDays,
+  notificationPermission,
   error,
   isSaving,
   metadataLoading,
@@ -35,6 +41,8 @@ export default function AddLinkDialog({
   onUrlChange,
   onTitleChange,
   onNoteChange,
+  onReminderDaysChange,
+  onRequestNotifications,
   onShareChange,
   onSmartTagToggle,
   onClose,
@@ -132,6 +140,41 @@ export default function AddLinkDialog({
             placeholder="Kenapa link ini menarik buat kamu?"
             rows={3}
           />
+        </label>
+        <label className="field-label">
+          Pengingat baca
+          <select
+            value={reminderDays}
+            onChange={(event) =>
+              onReminderDaysChange(Number(event.target.value))
+            }
+          >
+            <option value={0}>Tidak ada</option>
+            <option value={1}>1 hari setelah disimpan</option>
+            <option value={7}>7 hari setelah disimpan</option>
+            <option value={30}>30 hari setelah disimpan</option>
+          </select>
+          <small>
+            Pengingat tersimpan privat dan tetap terlihat di arsip.
+          </small>
+          {reminderDays > 0 && notificationPermission !== "granted" && (
+            <div className="notification-permission">
+              <button
+                className="text-button"
+                type="button"
+                onClick={onRequestNotifications}
+              >
+                Izinkan notifikasi perangkat
+              </button>
+              <small aria-live="polite">
+                {notificationPermission === "denied"
+                  ? "Izin notifikasi belum aktif. Pengingat tetap tampil di aplikasi."
+                  : notificationPermission === "unsupported"
+                    ? "Notifikasi perangkat tidak tersedia. Pengingat tetap tampil di aplikasi."
+                    : "Notifikasi perangkat opsional. Pengingat juga tampil di aplikasi."}
+              </small>
+            </div>
+          )}
         </label>
         <div className="share-option">
           <label className="share-choice">

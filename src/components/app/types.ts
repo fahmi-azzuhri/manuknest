@@ -3,6 +3,7 @@ import type { User } from "../../lib/api";
 
 export type SavedLink = {
   id: number;
+  urlHash: string;
   title: string;
   url: string;
   href: string;

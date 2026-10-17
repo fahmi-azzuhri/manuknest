@@ -24,6 +24,19 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f4f0e7;
+  --ink-2: #d2cbbb;
+  --sky: #374052;
+  --sky-soft: #252e3a;
+  --mint: #2e4539;
+  --lav: #35344c;
+  --pink: #4b333d;
+  --yellow: #4b4026;
+  --coral: #ff8e86;
+  --focus: #ffd46a;
+}
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -36,6 +49,13 @@ body {
     radial-gradient(circle at 0 100%, #eee8fc 0, #eee8fc 239px, transparent 240px);
   background-attachment: fixed;
   background-repeat: no-repeat;
+}
+:root[data-theme="dark"] body {
+  background-color: #171922;
+  background-image:
+    radial-gradient(circle at 0 0, #202837 0, #202837 259px, transparent 260px),
+    radial-gradient(circle at 100% 30%, #1d2a25 0, #1d2a25 189px, transparent 190px),
+    radial-gradient(circle at 0 100%, #262434 0, #262434 239px, transparent 240px);
 }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
@@ -58,6 +78,7 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   align-items: center;
   justify-content: space-between;
 }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
 .brand {
   display: flex;
   align-items: center;
@@ -94,6 +115,8 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   font-weight: 800;
 }
 .sign-out-button:hover { background: var(--sky); }
+.theme-toggle { background: #fff; }
+.theme-toggle:hover { background: var(--sky-soft); }
 .icon-button {
   width: 44px;
   height: 44px;
@@ -528,6 +551,79 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   border-radius: 18px;
   overflow: hidden;
 }
+.reading-reminders {
+  margin-top: 22px;
+  padding: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  background: var(--yellow);
+}
+.reading-reminders-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reading-reminders-heading h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 600;
+}
+.reading-reminders-heading p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.reading-reminders-heading > span {
+  min-width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--sky-soft);
+  font-weight: 800;
+}
+.reading-reminders ul {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.reading-reminders li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.reading-reminder-copy { min-width: 0; display: grid; gap: 4px; }
+.reading-reminder-copy a {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+  text-underline-offset: 3px;
+}
+.reading-reminder-copy span { color: var(--ink-2); font-size: 12px; }
+.reading-reminder-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.reading-reminder-actions button,
+.reminder-snooze {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--sky-soft);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+.reading-reminder-actions button:hover,
+.reminder-snooze:hover { background: var(--sky); }
 .reminder-star {
   width: 40px;
   height: 40px;
@@ -618,7 +714,7 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   outline: none;
   resize: vertical;
 }
-.field-label input:focus, .field-label textarea:focus, .field-label select:focus { box-shadow: 0 0 0 4px var(--sky); }
+.field-label input:focus, .field-label textarea:focus, .field-label select:focus { box-shadow: 0 0 0 4px var(--focus); }
 .modal-save { width: 100%; margin-top: 4px; }
 .share-option { margin: 2px 0 18px; padding: 12px; background: var(--sky-soft); border: 2px solid var(--ink); border-radius: 14px; }
 .share-choice { display: flex; align-items: flex-start; gap: 11px; min-height: 44px; cursor: pointer; }
@@ -627,6 +723,16 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .share-choice strong { font-size: 13px; font-weight: 800; }
 .share-choice small { color: var(--ink-2); font-size: 12px; line-height: 1.55; }
 .share-choice:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
+.notification-permission { display: grid; gap: 4px; }
+.notification-permission .text-button { justify-self: start; }
+.notification-permission small { color: var(--ink-2); font-size: 12px; font-weight: 600; line-height: 1.45; }
+.reading-status-control select:focus-visible,
+.reminder-snooze:focus-visible,
+.reading-reminder-actions button:focus-visible,
+.field-label select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
 
 /* ---------- Auth ---------- */
 .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
@@ -882,6 +988,18 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .stack-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .stack-pill { padding: 9px 16px; border-radius: 999px; background: #fff; font-size: 14px; font-weight: 800; }
 .stack-pill.soft { background: rgba(255, 255, 255, .5); }
+.reading-status-control select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+.reminder-date.overdue { background: var(--yellow); }
 .stack-actions { margin-left: auto; display: flex; gap: 8px; }
 .stack-round {
   width: 44px;
@@ -900,11 +1018,104 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .stack-round:disabled { cursor: wait; opacity: .6; }
 .stack-aside .popular-like { border: 0; background: rgba(255, 255, 255, .6); }
 .stack-aside .popular-like.liked { background: #fff; color: var(--coral); }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:root[data-theme="dark"] .sign-out-button,
+:root[data-theme="dark"] .icon-button,
+:root[data-theme="dark"] .quick-save,
+:root[data-theme="dark"] .search-box,
+:root[data-theme="dark"] .chip,
+:root[data-theme="dark"] .link-card,
+:root[data-theme="dark"] .popular-card,
+:root[data-theme="dark"] .empty-state,
+:root[data-theme="dark"] .bottom-nav,
+:root[data-theme="dark"] .add-modal,
+:root[data-theme="dark"] .field-label input,
+:root[data-theme="dark"] .field-label textarea,
+:root[data-theme="dark"] .field-label select,
+:root[data-theme="dark"] .auth-card,
+:root[data-theme="dark"] .profile-edit-button,
+:root[data-theme="dark"] .shared-profile-back,
+:root[data-theme="dark"] .shared-profile-links li > a,
+:root[data-theme="dark"] .stack-pill,
+:root[data-theme="dark"] .stack-round,
+:root[data-theme="dark"] .popular-like,
+:root[data-theme="dark"] .music-card,
+:root[data-theme="dark"] .reading-status-control select {
+  background-color: #242833;
+  color: var(--ink);
+}
+:root[data-theme="dark"] .stack-card {
+  background: color-mix(in srgb, var(--tone, var(--sky)) 24%, #242833);
+  color: var(--ink);
+  box-shadow: 0 -8px 22px rgba(0, 0, 0, .3);
+}
+:root[data-theme="dark"] .link-card::before,
+:root[data-theme="dark"] .popular-card::before { background: var(--sky-soft); }
+:root[data-theme="dark"] .save-button,
+:root[data-theme="dark"] .empty-state button,
+:root[data-theme="dark"] .chip.active,
+:root[data-theme="dark"] .nav-item.active,
+:root[data-theme="dark"] .open-link:hover {
+  background: #596b4a;
+  color: #fff;
+}
+:root[data-theme="dark"] .stack-pill.soft,
+:root[data-theme="dark"] .stack-icon,
+:root[data-theme="dark"] .stack-round,
+:root[data-theme="dark"] .stack-aside .popular-like {
+  background: rgba(20, 22, 30, .55);
+}
+:root[data-theme="dark"] .stack-round:hover:not(:disabled),
+:root[data-theme="dark"] .stack-aside .popular-like.liked {
+  background: #303747;
+}
+:root[data-theme="dark"] .reading-reminders {
+  background: #2b322b;
+}
+:root[data-theme="dark"] .notice.error,
+:root[data-theme="dark"] .delete-link-button:hover:not(:disabled) {
+  background: #493038;
+}
+:root[data-theme="dark"] .popular-like:hover:not(:disabled) {
+  background: #49343a;
+  color: var(--ink);
+}
+:root[data-theme="dark"] .auth-error,
+:root[data-theme="dark"] .profile-state.error,
+:root[data-theme="dark"] .music-error {
+  color: #ff9c92;
+}
+:root[data-theme="dark"] .field-label input:focus,
+:root[data-theme="dark"] .field-label textarea:focus,
+:root[data-theme="dark"] .field-label select:focus {
+  box-shadow: 0 0 0 4px var(--focus);
+}
+:root[data-theme="dark"] .music-artist,
+:root[data-theme="dark"] .music-song { color: var(--ink); }
+:root[data-theme="dark"] .music-card { --mp: #ff8e86; --mp-soft: #49343a; }
+:root[data-theme="dark"] .music-progress input {
+  background: linear-gradient(to right, var(--mp) var(--music-progress, 0%), #5c606b var(--music-progress, 0%));
+}
+
 @media (max-width: 520px) {
   .stack-card { padding: 18px 16px 44px; border-radius: 28px; }
   .stack-item:last-child .stack-card { padding-bottom: 18px; }
   .stack-icon { width: 54px; height: 54px; font-size: 22px; }
   .stack-title { font-size: 16px; }
+  .reading-reminders { padding: 15px; }
+  .reading-reminders li { align-items: flex-start; flex-direction: column; }
+  .reading-reminder-actions { width: 100%; }
 }
 
 /* ----- Mode collapsible (default): kartu bisa dibuka/ditutup ----- */
