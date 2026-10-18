@@ -1,19 +1,21 @@
-<img width="2752" height="1536" alt="Gemini_Generated_Image_f3rnu0f3rnu0f3rn" src="https://github.com/user-attachments/assets/a7f5e9b2-bae6-4391-8e4c-7395322546f2" />
+<img width="2752" height="1536" alt="Gemini_Generated_Image_7alrkr7alrkr7alr" src="https://github.com/user-attachments/assets/331b65cc-f37c-4226-8c69-10ba3e652c46" />
 
 # Manuknest
 
-Manuknest is a personal archive for saving links and finding them again. This folder contains the React web app and its Capacitor Android project. The Go API and database setup are documented in the [project README](../README.md).
+Manuknest is a personal archive for saving links and finding them again. This folder contains the React web app and its Capacitor Android project.
 
 ## What the app does
 
 - Register or sign in, then save and organize links in a private archive.
 - Search saved links and filter them by the first selected tag. Add notes, collections, reading status, and smart tag suggestions that auto-categorize new links.
+- Set private 1-, 7-, or 30-day reading reminders, snooze them by one day, and mark links unread or done. Marking a link done removes its reminder.
+- Switch between light and dark themes with a full-screen sun/moon transition. The transition respects reduced-motion preferences.
 - Share selected links and their selected tags in Explore, where signed-in users can like them and visit the sharer's profile.
 - View a profile with the account's shared-link and like counts, username, and optional YouTube Music player.
 - Use the same frontend in a browser or as the Manuknest Android app.
 - Click or tap Tiko, the mascot in the nest, to make it fly.
 
-The browser encrypts saved link records before sending them to the API. Smart tag suggestions are a separate request: the browser sends the URL, title, and note in plaintext to the API, which forwards them to Gemini when configured. The app derives its archive encryption keys from the account password and server-provided salt. Links a user explicitly shares expose their selected URL, title, and tags to signed-in users; notes and reading status remain private. Read more about the design and its limitations in the root [README](../README.md#archive-encryption-and-migration).
+The browser encrypts saved link records before sending them to the API. Smart tag suggestions are a separate request: the browser sends the URL, title, and note in plaintext to the API, which forwards them to Gemini when configured. The app derives its archive encryption keys from the account password and server-provided salt. Links a user explicitly shares expose their selected URL, title, and tags to signed-in users; notes and reading status remain private. 
 
 ## Stack
 
@@ -25,7 +27,7 @@ The browser encrypts saved link records before sending them to the API. Smart ta
 
 ## Run the web app locally
 
-Install Node.js and npm. Start the backend and MySQL database first; see [backend setup](../README.md#run-locally).
+Install Node.js and npm. Start the backend and MySQL database first; 
 
 ```powershell
 npm install
@@ -49,12 +51,19 @@ The build reads `VITE_API_URL` from `.env.production`. Set it to the API origin 
 
 ## Build the Android app
 
-Install Android Studio, an Android SDK, and a compatible JDK. The app name is Manuknest. Its launcher icon is generated from `public/tiko/nest-idle.webp`.
+Install Android Studio, an Android SDK, and a compatible JDK. The app name is Manuknest. Its launcher icon is generated from `public/tiko/nest-idle.webp`. If `ANDROID_HOME` is not configured, set it in PowerShell to Android Studio's default Windows SDK path:
+
+```powershell
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+```
 
 ```powershell
 npm install
 npm run assets:android
-npm run build:apk
+npm run build
+npx cap sync android
+Set-Location android
+.\gradlew.bat assembleDebug
 ```
 
 The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
@@ -77,10 +86,15 @@ keyPassword=your-key-password
 Then build the APK:
 
 ```powershell
-npm run build:apk:release
+npm run build
+npx cap sync android
+Set-Location android
+.\gradlew.bat assembleRelease
 ```
 
 The signed APK is written to `android/app/build/outputs/apk/release/app-release.apk`. Back up `android/app/release-key.p12` and `android/keystore.properties` somewhere secure. They are excluded from Git. The keystore is needed to sign future updates with the same app identity.
+
+Run the build commands from the `frontend` directory before changing into `android`. Calling `.\gradlew.bat` from the Android project directory avoids shell-specific failures to locate the Gradle wrapper.
 
 Other Android commands:
 
@@ -100,3 +114,4 @@ npm run cap:open
 - `src/lib/vault.ts` handles link encryption, decryption, and URL lookup hashes.
 - `public/tiko/` contains the Manuknest mascot assets.
 - `android/` contains the native Android project managed by Capacitor.
+
