@@ -64,7 +64,6 @@ function formatTime(seconds: number): string {
   return `${minutes}:${rest}`;
 }
 
-// Lagu resmi di YouTube Music biasanya bernama kanal "Nama Artis - Topic".
 function cleanArtist(author: string): string {
   return author.replace(/\s*-\s*Topic$/i, "").trim();
 }
@@ -98,7 +97,6 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
     setError("");
     setThumbFailed(false);
 
-    // YouTube mengganti elemen ini dengan iframe, jadi dibuat di luar kendali React.
     const mount = document.createElement("div");
     host.appendChild(mount);
 
@@ -170,7 +168,6 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
     };
   }, [videoId]);
 
-  // Perbarui posisi lagu selama diputar.
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(() => {
@@ -322,7 +319,6 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
       </div>
 
       <div className="music-cover">
-        {/* Pemutar YouTube tetap dipasang di belakang gambar supaya audio bisa jalan. */}
         <div className="music-cover-video" ref={hostRef} />
         {!thumbFailed && (
           <img

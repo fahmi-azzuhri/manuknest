@@ -58,7 +58,6 @@ export function suggestSmartTags(input: SmartTagInput): string[] {
       if (rule) addScore(rule, 2);
     }
   } catch {
-    // Ignore invalid URLs and continue with title/note-based suggestions.
   }
 
   for (const [pattern, tag] of keywordRules) {

@@ -1,14 +1,12 @@
 import { useMemo, type CSSProperties } from "react";
 
 type ThemeTransitionOverlayProps = {
-  /** Tema tujuan */
   to: "light" | "dark";
   onDone: () => void;
 };
 
 type Star = { left: number; top: number; size: number; delay: number; dur: number };
 
-// PRNG deterministik supaya posisi bintang konsisten tiap render.
 function makeStars(count: number): Star[] {
   let seed = 7;
   const rand = () => {
@@ -43,14 +41,12 @@ export default function ThemeTransitionOverlay({
         }
       }}
     >
-      {/* Langit siang (selalu di bawah) */}
       <div className="scene-sky scene-day">
         <span className="scene-cloud scene-cloud-a" />
         <span className="scene-cloud scene-cloud-b" />
         <span className="scene-cloud scene-cloud-c" />
       </div>
 
-      {/* Langit malam (fade in / out di atas langit siang) */}
       <div className="scene-sky scene-night">
         {stars.map((s, i) => (
           <span
@@ -70,7 +66,6 @@ export default function ThemeTransitionOverlay({
         ))}
       </div>
 
-      {/* Matahari turun / naik, bulan naik / turun */}
       <div className="scene-body scene-body-sun">
         <span className="scene-sun" />
       </div>

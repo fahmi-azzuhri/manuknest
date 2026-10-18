@@ -11,18 +11,13 @@ import { ChevronDown } from "lucide-react";
 
 export type StackItem = {
   id: number | string;
-  /** warna pastel kartu */
   tone: string;
-  /** isi lingkaran di kiri (inisial / emoji / ikon) */
   icon: ReactNode;
   title: string;
   subtitle: string;
   byline?: ReactNode;
-  /** elemen di kanan header (tombol buka / suka). Jangan taruh <button> di dalam toggle. */
   aside?: ReactNode;
-  /** isi kartu (muncul saat kartu dibuka, atau selalu terlihat bila collapsible={false}) */
   body: ReactNode;
-  /** baris bawah (pill tanggal, kategori, aksi) */
   footer?: ReactNode;
 };
 
@@ -31,7 +26,6 @@ const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Buka/tutup isi kartu dengan animasi tinggi (Web Animations API). */
 function Collapse({
   open,
   id,
@@ -103,7 +97,6 @@ function StackCard({
   const clicked = useRef(false);
   const startedOpen = useRef(open && collapsible);
 
-  // Masuk: kartu jatuh dari atas lalu mengendap di tumpukan, bergantian.
   useEffect(() => {
     const card = cardRef.current;
     if (!card || prefersReducedMotion()) return;
@@ -123,11 +116,8 @@ function StackCard({
       },
     );
     return () => anim.cancel();
-    // hanya saat kartu pertama kali muncul
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Buka/tutup: kartu miring sedikit dengan efek membal, lalu digulir agar terlihat.
   useEffect(() => {
     if (!collapsible || prevOpen.current === open) return;
     prevOpen.current = open;
@@ -230,16 +220,6 @@ function StackCard({
   );
 }
 
-/**
- * Tumpukan kartu yang bisa digeser atas-bawah (scroll/swipe halaman).
- *
- * collapsible (default): kartu paling bawah otomatis terbuka. Tap untuk
- *   membuka/menutup kartu lain; yang terbuka
- *   miring sedikit dan naik di atas kartu lain. Saat digulir, kartu dekat tepi
- *   layar mengecil dan merapat ke tengah.
- * collapsible={false}: semua kartu selalu terbuka, efek ala "recent apps"
- *   dengan perspektif 3D saat digulir.
- */
 export default function CardStack({
   items,
   collapsible = true,
@@ -247,13 +227,10 @@ export default function CardStack({
 }: {
   items: StackItem[];
   collapsible?: boolean;
-  /** kartu bereaksi (mengecil/bergeser) saat halaman di-scroll. Default: mati untuk mode buka-tutup. */
   scrollEffect?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const itemsKey = items.map((item) => item.id).join(",");
-  // Pilihan pengguna berlaku untuk daftar yang sedang tampil saja. Selama belum
-  // memilih, kartu paling bawah otomatis terbuka.
   const [choice, setChoice] = useState<{
     key: string;
     id: number | string | null;
@@ -273,9 +250,8 @@ export default function CardStack({
       const vh = window.innerHeight;
       const rootTop = root.getBoundingClientRect().top;
       for (const el of nodes()) {
-        // offsetTop tidak terpengaruh transform, jadi tidak ada umpan balik/jitter
         const center = rootTop + el.offsetTop + el.offsetHeight / 2;
-        const d = (center - vh * 0.5) / vh; // ~ -0.5 .. 0.5+
+        const d = (center - vh * 0.5) / vh;
         if (collapsible) {
           const k = Math.min(1, Math.abs(d) * 1.7);
           el.style.transform = `translate3d(0,${(-d * 22).toFixed(1)}px,0) scale(${(1 - k * 0.07).toFixed(3)})`;
@@ -283,8 +259,8 @@ export default function CardStack({
           const above = d < 0;
           const k = Math.min(1, Math.abs(d) * 2.2);
           const scale = 1 - k * (above ? 0.1 : 0.06);
-          const tilt = above ? k * 9 : -k * 4; // atas merebah ke belakang
-          const shift = above ? -d * 46 : -d * 18; // atas lebih rapat menumpuk
+          const tilt = above ? k * 9 : -k * 4;
+          const shift = above ? -d * 46 : -d * 18;
           el.style.transformOrigin = above ? "50% 100%" : "50% 0%";
           el.style.transform = `translate3d(0,${shift.toFixed(1)}px,0) rotateX(${tilt.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
         }

@@ -3,10 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =========================================================
-   Manuknest — gaya: outline navy tebal, kartu pastel bertumpuk,
-   marker biru di judul, tab pill, tombol navy.
-   ========================================================= */
 :root {
   --ink: #14123a;
   --ink-2: #4a4970;
@@ -42,7 +38,6 @@ body {
   margin: 0;
   min-width: 320px;
   background-color: #fff;
-  /* lingkaran pucat seperti di referensi */
   background-image:
     radial-gradient(circle at 0 0, var(--sky-soft) 0, var(--sky-soft) 259px, transparent 260px),
     radial-gradient(circle at 100% 30%, #e4f6ee 0, #e4f6ee 189px, transparent 190px),
@@ -91,7 +86,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   padding: 0 20px calc(120px + env(safe-area-inset-bottom));
 }
 
-/* ---------- Topbar ---------- */
 .topbar {
   height: 76px;
   display: flex;
@@ -172,7 +166,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   opacity: 1;
   transform: translateY(0) rotate(0) scale(1);
 }
-/* ---------- Transisi tema layar penuh (matahari <-> bulan) ---------- */
 .theme-scene {
   --scene-ease: cubic-bezier(.45, 0, .2, 1);
   --scene-dur: 1600ms;
@@ -205,7 +198,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   animation: scene-twinkle 2.4s ease-in-out infinite alternate;
 }
 
-/* Awan */
 .scene-cloud {
   position: absolute;
   height: 44px;
@@ -228,7 +220,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .scene-cloud-b { right: 12%; top: 40%; transform: scale(.8); --drift: 110px; }
 .scene-cloud-c { left: 44%; top: 62%; transform: scale(.65); --drift: 80px; opacity: .9; }
 
-/* Matahari & bulan: gerak lurus naik / turun */
 .scene-body {
   position: absolute;
   left: calc(50% - var(--body) / 2);
@@ -271,7 +262,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 }
 .icon-button:hover { background: var(--sky); }
 
-/* ---------- Label kecil & judul ---------- */
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -294,7 +284,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .section-heading h2::after,
 .profile-heading h1::after { content: "."; color: #4aa3de; }
 
-/* ---------- Hero: kartu maskot (tetap di tengah) ---------- */
 .hero {
   position: relative;
   isolation: isolate;
@@ -307,14 +296,13 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   height: 380px;
   margin-bottom: 38px;
   display: flex;
-  justify-content: center;   /* sarang + Tiko di tengah horizontal */
-  align-items: center;       /* dan di tengah vertikal */
+  justify-content: center;
+  align-items: center;
   padding-bottom: 14px;
   background: var(--sky);
   border: 2px solid var(--ink);
   border-radius: 30px;
 }
-/* kartu belakang yang mengintip, seperti tumpukan di referensi */
 .mascot-stage::before {
   content: "";
   position: absolute;
@@ -325,7 +313,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   border-radius: 30px;
   transform: translate(10px, 10px) rotate(1.4deg);
 }
-/* lingkaran terang di belakang sarang */
 .mascot-stage::after {
   content: "";
   position: absolute;
@@ -340,7 +327,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 }
 .hero .mascot-wrap { width: 300px; height: 290px; margin: 0 auto; }
 
-/* gelembung ucapan = pil putih yang menempel di tepi bawah kartu */
 .mascot-speech {
   position: absolute;
   z-index: 3;
@@ -367,7 +353,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   box-shadow: 0 3px 0 rgba(12, 15, 21, .4);
 }
 
-/* ---------- Simpan cepat ---------- */
 .quick-save {
   display: flex;
   align-items: center;
@@ -444,7 +429,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   color: inherit;
 }
 
-/* ---------- Statistik ---------- */
 .stats-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1.25fr;
@@ -478,7 +462,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .mini-label { font-size: 10px; font-weight: 800; letter-spacing: .6px; }
 .encouragement p { max-width: 190px; margin: 7px 0 0; font-size: 13px; font-weight: 700; line-height: 1.5; }
 
-/* ---------- Koleksi ---------- */
 .collection { margin-top: 36px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .section-heading h2 { margin: 0; font-family: var(--display); font-size: 26px; font-weight: 600; letter-spacing: -.3px; }
@@ -516,7 +499,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; }
 .search-box input::placeholder { color: var(--ink-2); font-weight: 400; }
 
-/* tab pill yang bisa digeser, aktif = navy penuh */
 .filter-chips {
   display: flex;
   flex-wrap: nowrap;
@@ -526,9 +508,9 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;   /* momentum scroll di iOS */
+  -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overscroll-behavior-x: contain;      /* swipe tidak ikut menggeser halaman */
+  overscroll-behavior-x: contain;
   scroll-padding: 0 20px;
   scrollbar-width: none;
 }
@@ -548,7 +530,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .chip:hover { background: var(--sky-soft); }
 .chip.active { background: var(--ink); color: #fff; }
 
-/* ---------- Daftar kartu (bertumpuk) ---------- */
 .link-list {
   display: flex;
   flex-direction: column;
@@ -623,7 +604,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .delete-link-button:hover:not(:disabled) { background: #ffd5da; }
 .delete-link-button:disabled { cursor: wait; opacity: .6; }
 
-/* kartu terpopuler */
 .popular-card { padding: 18px; }
 .popular-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .popular-card-heading h3 { margin: 8px 0 0; font-family: var(--display); font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
@@ -786,7 +766,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .gentle-reminder p { margin: 4px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.5; }
 .reminder-plant { margin-left: auto; font-size: 38px; line-height: 1; color: var(--ink); opacity: .25; transform: rotate(-25deg); }
 
-/* ---------- Navigasi bawah ---------- */
 .bottom-nav {
   position: fixed;
   z-index: 5;
@@ -819,7 +798,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .nav-item:hover { background: var(--sky-soft); }
 .nav-item.active { background: var(--ink); color: #fff; }
 
-/* ---------- Modal ---------- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -881,7 +859,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   outline-offset: 3px;
 }
 
-/* ---------- Auth ---------- */
 .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
 .auth-card {
   width: min(100%, 440px);
@@ -901,7 +878,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .auth-switch button { min-height: 44px; padding: 8px; border: 0; background: transparent; color: var(--ink); font-weight: 800; text-decoration: underline; text-decoration-color: var(--sky); text-decoration-thickness: 3px; text-underline-offset: 3px; }
 .auth-loading { min-height: 100vh; display: grid; place-items: center; padding: 24px; color: var(--ink); font-size: 14px; font-weight: 700; }
 
-/* ---------- Profil ---------- */
 .profile-page { max-width: 720px; margin: 24px auto 0; }
 .profile-hero { display: grid; justify-items: center; text-align: center; }
 .profile-avatar {
@@ -971,9 +947,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .privacy-note p { margin: 0 0 12px; color: var(--ink); font-size: 13px; line-height: 1.7; }
 .privacy-note p:last-child { margin-bottom: 0; }
 
-/* =========================================================
-   TIKO: diam di sarang, klik untuk terbang (sprite asli, tidak diubah)
-   ========================================================= */
 .mascot-wrap { position: relative; z-index: 1; width: 174px; height: 164px; }
 .mascot-shadow {
   position: absolute;
@@ -1007,7 +980,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .tiko.is-nest .tk-blink { visibility: visible; animation: tk-blink 2.5s step-end infinite; }
 .tk-egg { position: absolute; z-index: 2; top: 24%; left: 33%; width: 34%; height: auto; aspect-ratio: .8; transform-origin: 50% 95%; animation: tk-egg-wobble 3s ease-in-out infinite; filter: drop-shadow(0 3px 3px #30271924); }
 
-/* Tiko terbang bebas (dirender di <body>) */
 .tk-flyer { position: absolute; z-index: 9; pointer-events: none; transform-origin: 50% 50%; will-change: transform, opacity; }
 .tk-flyer-shadow { position: absolute; left: 50%; top: 100%; width: 58%; height: 14px; margin-top: 64px; transform: translateX(-50%); border-radius: 50%; background: var(--ink); filter: blur(4px); opacity: .15; }
 .tk-flyer-inner { position: absolute; inset: 0; animation: tk-bob .34s ease-in-out infinite; filter: drop-shadow(0 8px 6px rgba(20, 18, 58, .12)); }
@@ -1043,7 +1015,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 }
 @keyframes scene-twinkle { from { opacity: .2; transform: scale(.8); } to { opacity: 1; transform: scale(1.15); } }
 
-/* ---------- Responsif ---------- */
 @media (max-width: 700px) {
   .app-shell { padding: 0 16px calc(120px + env(safe-area-inset-bottom)); }
   .topbar { height: 66px; }
@@ -1086,10 +1057,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
-/* =========================================================
-   CARD STACK ala "recent apps" (Home, Saved, Terpopuler)
-   Semua kartu terbuka & saling menimpa; efek 3D diatur CardStack.tsx.
-   ========================================================= */
 .link-list { gap: 0; padding: 0 0 8px; }
 .stack {
   position: relative;
@@ -1101,13 +1068,13 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 }
 .stack-item {
   position: relative;
-  margin-top: -22px;       /* kartu berikutnya menimpa ujung bawah kartu sebelumnya */
+  margin-top: -22px;
   will-change: transform;
 }
 .stack-item:first-child { margin-top: 0; }
 .stack-card {
   position: relative;
-  padding: 20px 20px 44px;  /* 22px terakhir tertutup kartu berikutnya */
+  padding: 20px 20px 44px;
   background: var(--tone, var(--sky));
   border-radius: 30px;
   color: var(--ink);
@@ -1303,7 +1270,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   }
 }
 
-/* ----- Mode collapsible (default): kartu bisa dibuka/ditutup ----- */
 .stack-collapsible .stack-item { margin-top: -28px; scroll-margin-bottom: 120px; }
 .stack-collapsible .stack-item:first-child { margin-top: 0; }
 .stack-collapsible .stack-item.is-open { z-index: 2; }
@@ -1329,9 +1295,6 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 .stack-collapse { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .stack-chevron { transition: none; } }
 
-/* =========================================================
-   PEMUTAR LAGU PROFIL: kartu putih, sampul bulat di kanan
-   ========================================================= */
 .profile-music { margin: 24px 0; }
 .profile-music h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-family: var(--display); font-size: 21px; font-weight: 600; }
 .profile-music > p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }

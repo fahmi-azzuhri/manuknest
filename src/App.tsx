@@ -65,8 +65,6 @@ type ThemeTransition = {
   theme: Theme;
 };
 
-// Waktu (ms) tema benar-benar diganti: saat layar masih tertutup penuh
-// oleh animasi, tepat di tengah pergantian matahari <-> bulan.
 const THEME_SWAP_MS = 1150;
 
 const themeStorageKey = "tumpuk.theme";
@@ -624,7 +622,6 @@ export default function App() {
       THEME_SWAP_MS,
     );
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [themeTransition]);
 
   async function enableNotifications() {

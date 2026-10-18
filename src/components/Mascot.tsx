@@ -1,30 +1,27 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 
-// Aset ada di public/tiko/ (hasil potongan dari gambar Tiko_Mascot_Animation_Showcase.png)
 const IMG = {
-  nest: '/tiko/nest-idle.webp', // Tiko diam di sarang
-  nestEmpty: '/tiko/nest-empty.webp', // sarang kosong (saat Tiko terbang)
+  nest: '/tiko/nest-idle.webp',
+  nestEmpty: '/tiko/nest-empty.webp',
   nestFront: '/tiko/nest-front.webp',
-  fly1: '/tiko/fly-1.webp', // sayap naik
-  fly2: '/tiko/fly-2.webp', // sayap turun
+  fly1: '/tiko/fly-1.webp',
+  fly2: '/tiko/fly-2.webp',
 }
-const FLY_ASPECT = 360 / 394 // tinggi / lebar frame terbang
+const FLY_ASPECT = 360 / 394
 
-// `mood` dipertahankan supaya pemakaian lama <Mascot mood="..."/> tidak error.
 type Props = { mood?: 'happy' | 'sleepy' | 'peek'; small?: boolean; speech?: string; savedCount?: number }
 type Phase = 'nest' | 'flying' | 'landed'
 type Origin = { x: number; y: number; w: number; h: number }
 type Flyer = Origin
 
-const FLY_MS = 9000 // lama terbang (ubah di sini)
+const FLY_MS = 9000
 const LANDED_MS = 2400
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const cr = (p0: number, p1: number, p2: number, p3: number, t: number) =>
   0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
 
-/** Jalur terbang acak & mulus (Catmull-Rom) di ruang layar, berawal & berakhir di mulut sarang. */
 function buildKeyframes(o: Origin): Keyframe[] {
   const vw = document.documentElement.clientWidth
   const vh = window.innerHeight
@@ -66,7 +63,7 @@ function buildKeyframes(o: Origin): Keyframe[] {
   const N = seg * 32 + 1
   const pos = Array.from({ length: N }, (_, k) => {
     const off = k / (N - 1)
-    const u = (0.8 * off + 0.2 * off * off * (3 - 2 * off)) * seg // hampir linear: lepas landas cukup sigap
+    const u = (0.8 * off + 0.2 * off * off * (3 - 2 * off)) * seg
     const i = Math.min(Math.floor(u), seg - 1)
     const t = u - i
     return {
@@ -99,7 +96,7 @@ export default function Mascot({ small = false, speech, savedCount }: Props) {
   }
   useEffect(() => clearTimers, [])
   useEffect(() => {
-    Object.values(IMG).forEach((src) => { const i = new Image(); i.src = src }) // preload
+    Object.values(IMG).forEach((src) => { const i = new Image(); i.src = src })
   }, [])
 
   const land = useCallback(() => {
@@ -121,7 +118,6 @@ export default function Mascot({ small = false, speech, savedCount }: Props) {
     const h = w * FLY_ASPECT
     const bx = r.left + window.scrollX
     const by = r.top + window.scrollY
-    // Keep the takeoff sprite centered and small enough to emerge through the nest opening.
     setFlyer({
       x: bx + (r.width - w) / 2,
       y: by - h * 0.04,
@@ -139,7 +135,6 @@ export default function Mascot({ small = false, speech, savedCount }: Props) {
       anim.onfinish = null
       anim.cancel()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyer])
 
   const onKey = (e: KeyboardEvent) => {
@@ -166,7 +161,6 @@ export default function Mascot({ small = false, speech, savedCount }: Props) {
           {hasTiko ? (
             <>
               <img className="tk-nest" src={phase === 'flying' ? IMG.nestEmpty : IMG.nest} alt="" draggable={false} />
-              {/* kedip: kelopak menutup mata, dilukis di atas mata terbuka */}
               <svg className="tk-blink" viewBox="0 0 430 358" aria-hidden="true">
                 <ellipse cx="196.6" cy="177" rx="14" ry="18" fill="#f8efdd" />
                 <ellipse cx="288" cy="164.6" rx="14" ry="18" fill="#f8efdd" />
@@ -240,7 +234,6 @@ export default function Mascot({ small = false, speech, savedCount }: Props) {
       </div>
       {speech && phase !== 'flying' && <p className="mascot-speech">{speech}</p>}
 
-      {/* Tiko terbang bebas di layar (di luar kontainer supaya tidak ter-clip) */}
       {flyer &&
         createPortal(
           <div ref={flyerRef} className="tk-flyer" aria-hidden="true"
