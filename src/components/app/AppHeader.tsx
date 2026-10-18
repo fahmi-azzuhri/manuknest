@@ -4,7 +4,7 @@ type AppHeaderProps = {
   email: string;
   theme: "light" | "dark";
   onHome: () => void;
-  onToggleTheme: () => void;
+  onToggleTheme: (origin: { x: number; y: number }) => void;
   onSignOut: () => void;
 };
 
@@ -34,11 +34,23 @@ export default function AppHeader({
         <button
           className="icon-button theme-toggle"
           type="button"
-          onClick={onToggleTheme}
+          onClick={(event) => {
+            const bounds = event.currentTarget.getBoundingClientRect();
+            onToggleTheme({
+              x: bounds.left + bounds.width / 2,
+              y: bounds.top + bounds.height / 2,
+            });
+          }}
           aria-label={`Aktifkan tema ${theme === "dark" ? "terang" : "gelap"}`}
           aria-pressed={theme === "dark"}
+          data-theme={theme}
         >
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          <span className="theme-toggle-icon theme-toggle-sun" aria-hidden="true">
+            <Sun size={19} />
+          </span>
+          <span className="theme-toggle-icon theme-toggle-moon" aria-hidden="true">
+            <Moon size={18} />
+          </span>
         </button>
         <button
           className="sign-out-button"

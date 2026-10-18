@@ -9,7 +9,7 @@ export type LinkVaultData = {
   description: string;
   domain: string;
   faviconUrl: string;
-  readStatus: "unread" | "reading" | "done";
+  readStatus: "unread" | "done";
   reminderAt?: string;
   metadataStatus: "pending" | "ready" | "unavailable";
   tags: string[];
@@ -130,7 +130,10 @@ export async function decryptLink(
   const json = await decryptText(ciphertext, keys, `tumpuk-link-v1:${urlHash}`);
   const data: unknown = JSON.parse(json);
   if (!isLinkVaultData(data)) throw new Error("Data link terenkripsi tidak valid.");
-  return data;
+  return {
+    ...data,
+    readStatus: data.readStatus === "reading" ? "unread" : data.readStatus,
+  };
 }
 
 async function encryptText(
@@ -191,7 +194,11 @@ function decodeBase64(value: string): Uint8Array {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
-function isLinkVaultData(value: unknown): value is LinkVaultData {
+function isLinkVaultData(
+  value: unknown,
+): value is Omit<LinkVaultData, "readStatus"> & {
+  readStatus: LinkVaultData["readStatus"] | "reading";
+} {
   if (!value || typeof value !== "object") return false;
   const link = value as Record<string, unknown>;
   return (

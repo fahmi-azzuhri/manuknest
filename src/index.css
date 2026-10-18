@@ -27,15 +27,15 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --ink: #f4f0e7;
-  --ink-2: #d2cbbb;
-  --sky: #374052;
-  --sky-soft: #252e3a;
-  --mint: #2e4539;
-  --lav: #35344c;
-  --pink: #4b333d;
-  --yellow: #4b4026;
-  --coral: #ff8e86;
-  --focus: #ffd46a;
+  --ink-2: #ddd5c5;
+  --sky: #3e5d70;
+  --sky-soft: #273a46;
+  --mint: #304b3c;
+  --lav: #484661;
+  --pink: #633f4b;
+  --yellow: #66531f;
+  --coral: #ff9e85;
+  --focus: #ffd166;
 }
 * { box-sizing: border-box; }
 body {
@@ -53,9 +53,29 @@ body {
 :root[data-theme="dark"] body {
   background-color: #171922;
   background-image:
-    radial-gradient(circle at 0 0, #202837 0, #202837 259px, transparent 260px),
-    radial-gradient(circle at 100% 30%, #1d2a25 0, #1d2a25 189px, transparent 190px),
-    radial-gradient(circle at 0 100%, #262434 0, #262434 239px, transparent 240px);
+    radial-gradient(circle at 0 0, #243241 0, #243241 259px, transparent 260px),
+    radial-gradient(circle at 100% 30%, #20392e 0, #20392e 189px, transparent 190px),
+    radial-gradient(circle at 0 100%, #332b3b 0, #332b3b 239px, transparent 240px);
+}
+body,
+.mascot-stage,
+.mascot-stage::before,
+.mascot-speech,
+.quick-save,
+.stat-card,
+.link-card,
+.popular-card,
+.stack-card,
+.bottom-nav,
+.reading-reminders,
+.add-modal,
+.auth-card,
+.profile-edit-form,
+.search-box {
+  transition:
+    background-color 360ms ease,
+    color 360ms ease,
+    border-color 360ms ease;
 }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
@@ -115,8 +135,129 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   font-weight: 800;
 }
 .sign-out-button:hover { background: var(--sky); }
-.theme-toggle { background: #fff; }
+.theme-toggle {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
 .theme-toggle:hover { background: var(--sky-soft); }
+.theme-toggle-icon {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  transform-origin: center;
+  will-change: transform, opacity;
+  transition:
+    transform 620ms cubic-bezier(.2, .85, .25, 1),
+    opacity 360ms ease,
+    color 360ms ease;
+}
+.theme-toggle-sun {
+  color: #b36230;
+  opacity: 1;
+  transform: translateY(0) rotate(0) scale(1);
+}
+.theme-toggle-moon {
+  color: #6b7795;
+  opacity: 0;
+  transform: translateY(16px) rotate(-150deg) scale(.35);
+}
+.theme-toggle[data-theme="dark"] .theme-toggle-sun {
+  color: #ffd166;
+  opacity: 0;
+  transform: translateY(-16px) rotate(150deg) scale(.35);
+}
+.theme-toggle[data-theme="dark"] .theme-toggle-moon {
+  color: #dbe9ff;
+  opacity: 1;
+  transform: translateY(0) rotate(0) scale(1);
+}
+/* ---------- Transisi tema layar penuh (matahari <-> bulan) ---------- */
+.theme-scene {
+  --scene-ease: cubic-bezier(.45, 0, .2, 1);
+  --scene-dur: 1600ms;
+  --scene-delay: 350ms;
+  --body: clamp(120px, 28vmin, 220px);
+  --body-top: 42%;
+  --body-drop: 85vh;
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  animation:
+    theme-scene-enter 350ms ease-out both,
+    theme-scene-leave 500ms ease-in 2100ms forwards;
+}
+.scene-sky { position: absolute; inset: 0; }
+.scene-day { background: linear-gradient(#78c6ee, #bfe8fa); }
+.scene-night {
+  background: radial-gradient(120% 90% at 50% 40%, #1f222b 0%, #171922 55%, #0e1017 100%);
+  animation: scene-night-fade var(--scene-dur) var(--scene-ease) var(--scene-delay) both;
+}
+.to-light .scene-night { animation-direction: reverse; }
+
+.scene-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff6d6;
+  opacity: .25;
+  animation: scene-twinkle 2.4s ease-in-out infinite alternate;
+}
+
+/* Awan */
+.scene-cloud {
+  position: absolute;
+  height: 44px;
+  width: 130px;
+  border-radius: 999px;
+  background: #fff;
+  animation: scene-cloud-drift var(--scene-dur) var(--scene-ease) var(--scene-delay) both;
+}
+.to-light .scene-cloud { animation-direction: reverse; }
+.scene-cloud::before,
+.scene-cloud::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+}
+.scene-cloud::before { width: 62px; height: 62px; left: 22px; top: -30px; }
+.scene-cloud::after { width: 46px; height: 46px; left: 66px; top: -20px; }
+.scene-cloud-a { left: 14%; top: 30%; --drift: -90px; }
+.scene-cloud-b { right: 12%; top: 40%; transform: scale(.8); --drift: 110px; }
+.scene-cloud-c { left: 44%; top: 62%; transform: scale(.65); --drift: 80px; opacity: .9; }
+
+/* Matahari & bulan: gerak lurus naik / turun */
+.scene-body {
+  position: absolute;
+  left: calc(50% - var(--body) / 2);
+  top: var(--body-top);
+  width: var(--body);
+  height: var(--body);
+  margin-top: calc(var(--body) / -2);
+  will-change: transform;
+}
+.scene-body-sun { animation: scene-sun-set var(--scene-dur) var(--scene-ease) var(--scene-delay) both; }
+.scene-body-moon { animation: scene-moon-rise var(--scene-dur) var(--scene-ease) var(--scene-delay) both; }
+.to-light .scene-body-sun,
+.to-light .scene-body-moon { animation-direction: reverse; }
+.scene-sun {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe55c, #ffcf1f 70%);
+  box-shadow: 0 0 0 calc(var(--body) * .12) rgba(255, 214, 10, .22),
+    0 0 calc(var(--body) * .7) rgba(255, 214, 10, .55);
+}
+.scene-moon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 calc(var(--body) * .15) rgba(241, 246, 220, .45));
+}
+
 .icon-button {
   width: 44px;
   height: 44px;
@@ -218,6 +359,12 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   font-weight: 700;
   line-height: 1.45;
   text-align: center;
+}
+:root[data-theme="dark"] .mascot-speech {
+  background: #f4f0e7;
+  border-color: #f4f0e7;
+  color: #25271f;
+  box-shadow: 0 3px 0 rgba(12, 15, 21, .4);
 }
 
 /* ---------- Simpan cepat ---------- */
@@ -878,6 +1025,23 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 @keyframes tk-blink { 0% { opacity: 0; } 88% { opacity: 1; } 90% { opacity: 0; } 93% { opacity: 1; } 95% { opacity: 0; } }
 @keyframes tk-egg-wobble { 0%, 83%, 100% { transform: rotate(0); } 86% { transform: rotate(-5deg); } 90% { transform: rotate(5deg); } 94% { transform: rotate(-3deg); } 97% { transform: rotate(2deg); } }
 @keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes theme-scene-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes theme-scene-leave { from { opacity: 1; } to { opacity: 0; } }
+@keyframes scene-sun-set {
+  0% { transform: translateY(0); }
+  70%, 100% { transform: translateY(var(--body-drop)); }
+}
+@keyframes scene-moon-rise {
+  0%, 30% { transform: translateY(var(--body-drop)); }
+  100% { transform: translateY(0); }
+}
+@keyframes scene-night-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scene-cloud-drift {
+  from { opacity: 1; translate: 0 0; }
+  70% { opacity: .15; }
+  to { opacity: 0; translate: var(--drift) -12px; }
+}
+@keyframes scene-twinkle { from { opacity: .2; transform: scale(.8); } to { opacity: 1; transform: scale(1.15); } }
 
 /* ---------- Responsif ---------- */
 @media (max-width: 700px) {
@@ -1056,7 +1220,7 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   color: var(--ink);
 }
 :root[data-theme="dark"] .stack-card {
-  background: color-mix(in srgb, var(--tone, var(--sky)) 24%, #242833);
+  background: color-mix(in srgb, var(--tone, var(--sky)) 36%, #242833);
   color: var(--ink);
   box-shadow: 0 -8px 22px rgba(0, 0, 0, .3);
 }
@@ -1067,8 +1231,8 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
 :root[data-theme="dark"] .chip.active,
 :root[data-theme="dark"] .nav-item.active,
 :root[data-theme="dark"] .open-link:hover {
-  background: #596b4a;
-  color: #fff;
+  background: #a2ca72;
+  color: #182018;
 }
 :root[data-theme="dark"] .stack-pill.soft,
 :root[data-theme="dark"] .stack-icon,
@@ -1116,6 +1280,27 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   .reading-reminders { padding: 15px; }
   .reading-reminders li { align-items: flex-start; flex-direction: column; }
   .reading-reminder-actions { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .mascot-stage,
+  .mascot-stage::before,
+  .mascot-speech,
+  .quick-save,
+  .stat-card,
+  .link-card,
+  .popular-card,
+  .stack-card,
+  .bottom-nav,
+  .reading-reminders,
+  .add-modal,
+  .auth-card,
+  .profile-edit-form,
+  .search-box,
+  .theme-toggle-icon {
+    transition-duration: .01ms;
+  }
 }
 
 /* ----- Mode collapsible (default): kartu bisa dibuka/ditutup ----- */

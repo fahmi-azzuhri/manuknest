@@ -195,17 +195,12 @@ function SavedLinkCards({
                 value={link.vault.readStatus}
                 onChange={(event) => {
                   const status = event.currentTarget.value;
-                  if (
-                    status === "unread" ||
-                    status === "reading" ||
-                    status === "done"
-                  ) {
+                  if (status === "unread" || status === "done") {
                     onReadingStatusChange(link, status);
                   }
                 }}
               >
-                <option value="unread">Belum dibaca</option>
-                <option value="reading">Sedang dibaca</option>
+                <option value="unread">Belum dilihat</option>
                 <option value="done">Selesai</option>
               </select>
             </label>

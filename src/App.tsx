@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import SharedProfilePage from "./components/SharedProfilePage";
 import AddLinkDialog from "./components/app/AddLinkDialog";
 import AppHeader from "./components/app/AppHeader";
@@ -18,6 +24,7 @@ import Notice from "./components/app/Notice";
 import ProfilePage from "./components/app/ProfilePage";
 import ReadingReminders from "./components/app/ReadingReminders";
 import { Search } from "lucide-react";
+import ThemeTransitionOverlay from "./components/app/ThemeTransitionOverlay";
 import { categoryOptions, tones } from "./components/app/types";
 import type { AuthSession, SavedLink } from "./components/app/types";
 import {
@@ -54,6 +61,13 @@ const sessionKey = "tumpuk.session";
 
 type AuthResponse = AuthSession;
 type Theme = "light" | "dark";
+type ThemeTransition = {
+  theme: Theme;
+};
+
+// Waktu (ms) tema benar-benar diganti: saat layar masih tertutup penuh
+// oleh animasi, tepat di tengah pergantian matahari <-> bulan.
+const THEME_SWAP_MS = 1150;
 
 const themeStorageKey = "tumpuk.theme";
 
@@ -136,6 +150,8 @@ function toSavedLink(
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [themeTransition, setThemeTransition] =
+    useState<ThemeTransition | null>(null);
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [vaultKeys, setVaultKeys] = useState<VaultKeys | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
@@ -332,7 +348,7 @@ export default function App() {
             description: legacy.description || "",
             domain: normalized.domain,
             faviconUrl: legacy.faviconUrl || "",
-            readStatus: legacy.readStatus || "unread",
+            readStatus: legacy.readStatus === "done" ? "done" : "unread",
             metadataStatus: legacy.metadataStatus || "unavailable",
             tags: legacy.tags.map((tag) => tag.name),
             collections: legacy.collections.map(
@@ -586,11 +602,30 @@ export default function App() {
     setLoadError("");
   }
 
-  function toggleTheme() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    window.localStorage.setItem(themeStorageKey, nextTheme);
+  function applyTheme(next: Theme) {
+    setTheme(next);
+    window.localStorage.setItem(themeStorageKey, next);
   }
+
+  function toggleTheme() {
+    if (themeTransition) return;
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      applyTheme(nextTheme);
+      return;
+    }
+    setThemeTransition({ theme: nextTheme });
+  }
+
+  useEffect(() => {
+    if (!themeTransition) return;
+    const timer = window.setTimeout(
+      () => applyTheme(themeTransition.theme),
+      THEME_SWAP_MS,
+    );
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeTransition]);
 
   async function enableNotifications() {
     try {
@@ -1504,6 +1539,12 @@ export default function App() {
           onClose={closeAdd}
           onSubmit={() => void saveLink()}
           onClearError={() => setAddError("")}
+        />
+      )}
+      {themeTransition && (
+        <ThemeTransitionOverlay
+          to={themeTransition.theme}
+          onDone={() => setThemeTransition(null)}
         />
       )}
     </div>
