@@ -132,7 +132,6 @@ export default function AddLinkDialog({
               </button>
             ))}
           </div>
-          <small>Tag pertama yang dipilih menjadi kategori filter.</small>
         </div>
         <label className="field-label">
           Catatan kecil{" "}
@@ -156,7 +155,6 @@ export default function AddLinkDialog({
             <option value={7}>7 hari setelah disimpan</option>
             <option value={30}>30 hari setelah disimpan</option>
           </select>
-          <small>Pengingat tersimpan privat dan tetap terlihat di arsip.</small>
           {reminderDays > 0 && notificationPermission !== "granted" && (
             <div className="notification-permission">
               <button
@@ -194,10 +192,6 @@ export default function AddLinkDialog({
               )}
             </span>
           </label>
-          <small>
-            Pemeriksaan otomatis memakai URL dan judul. Link dewasa yang tidak
-            terdeteksi masih bisa dibagikan.
-          </small>
         </div>
         {error && (
           <p className="auth-error" role="alert">
