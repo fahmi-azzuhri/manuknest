@@ -184,12 +184,7 @@ export default function AddLinkDialog({
             />
             <span>
               <strong>Bagikan di Explore</strong>
-              {isAdultContentBlocked && (
-                <small role="status">
-                  Konten dewasa hanya bisa disimpan pribadi dan tidak dapat
-                  dibagikan di Explore.
-                </small>
-              )}
+              {isAdultContentBlocked && <small role="status"></small>}
             </span>
           </label>
         </div>
