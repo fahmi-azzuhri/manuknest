@@ -8,14 +8,17 @@ Manuknest is a personal archive for saving links and finding them again. This fo
 
 - Register or sign in, then save and organize links in a private archive.
 - Search saved links and filter them by the first selected tag. Add notes, collections, reading status, and smart tag suggestions that auto-categorize new links.
+- Show page-provided Open Graph thumbnails, favicons, and domains on saved links. YouTube titles and thumbnails use oEmbed when page metadata is incomplete.
 - Set private 1-, 7-, or 30-day reading reminders, snooze them by one day, and mark links unread or done. Marking a link done removes its reminder.
 - Switch between light and dark themes with a full-screen sun/moon transition. The transition respects reduced-motion preferences.
-- Share selected links and their selected tags in Explore, where signed-in users can like them and visit the sharer's profile.
+- Share selected links and their selected tags in Explore, where signed-in users can like them and visit the sharer's profile. Content-safety checks use the link URL and page or entered title to keep detected content private.
 - View a profile with the account's shared-link and like counts, username, and optional YouTube Music player.
 - Use the same frontend in a browser or as the Manuknest Android app.
 - Click or tap Tiko, the mascot in the nest, to make it fly.
 
-The browser encrypts saved link records before sending them to the API. Smart tag suggestions are a separate request: the browser sends the URL, title, and note in plaintext to the API, which forwards them to Gemini when configured. The app derives its archive encryption keys from the account password and server-provided salt. Links a user explicitly shares expose their selected URL, title, and tags to signed-in users; notes and reading status remain private. 
+The browser encrypts saved link records before sending them to the API. Fetching page metadata and suggesting smart tags are separate requests: the browser sends the URL to the metadata API and sends the URL, title, and note to the tag API in plaintext. The tag API forwards them to Gemini when configured. The app derives its archive encryption keys from the account password and server-provided salt. Links a user explicitly shares expose their selected URL, title, and tags to signed-in users; notes and reading status remain private.
+
+Before sharing, the app checks the URL and available page or entered title for known content-safety terms and domains. Detected links can still be saved privately, but the app disables Explore sharing and the API prevents matching links from being published. This is a keyword and domain heuristic, not a complete content classifier, so it can miss links. Links already shared before this check was added are not changed automatically.
 
 ## Stack
 
@@ -114,4 +117,3 @@ npm run cap:open
 - `src/lib/vault.ts` handles link encryption, decryption, and URL lookup hashes.
 - `public/tiko/` contains the Manuknest mascot assets.
 - `android/` contains the native Android project managed by Capacitor.
-
