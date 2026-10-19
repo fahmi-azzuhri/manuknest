@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { ExternalLink, Heart, Trash2 } from "lucide-react";
 import CardStack from "../CardStack";
 import type { PopularLink } from "../../lib/api";
@@ -53,6 +54,55 @@ function LinkListState({
       {children}
       {actionLabel && onAction && <button onClick={onAction}>{actionLabel}</button>}
     </div>
+  );
+}
+
+function SavedLinkIcon({ link }: { link: SavedLink }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  const showPreview = Boolean(link.vault.previewImageUrl) && !previewFailed;
+  const showFavicon = Boolean(link.vault.faviconUrl) && !faviconFailed;
+
+  return (
+    <span
+      className={
+        showPreview
+          ? "link-preview-mark with-cover"
+          : "link-preview-mark without-cover"
+      }
+    >
+      {showPreview && (
+        <img
+          className="link-preview-cover"
+          src={link.vault.previewImageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setPreviewFailed(true)}
+        />
+      )}
+      <span
+        className={
+          showPreview
+            ? "link-preview-favicon is-overlay"
+            : "link-preview-favicon"
+        }
+      >
+        {showFavicon ? (
+          <img
+            src={link.vault.faviconUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onError={() => setFaviconFailed(true)}
+          />
+        ) : (
+          <span>{link.initials}</span>
+        )}
+      </span>
+    </span>
   );
 }
 
@@ -159,9 +209,10 @@ function SavedLinkCards({
       items={links.map((link) => ({
         id: link.id,
         tone: link.color,
-        icon: link.initials,
+        icon: <SavedLinkIcon link={link} />,
+        iconClassName: "stack-link-preview",
         title: link.title,
-        subtitle: link.vault.description.trim(),
+        subtitle: hostOf(link.href),
         aside: (
           <a
             className="stack-round"
@@ -174,14 +225,19 @@ function SavedLinkCards({
           </a>
         ),
         body: (
-          <a
-            className="stack-url"
-            href={link.href}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {link.url}
-          </a>
+          <>
+            {link.vault.description.trim() && (
+              <p className="stack-note">{link.vault.description}</p>
+            )}
+            <a
+              className="stack-url"
+              href={link.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {link.url}
+            </a>
+          </>
         ),
         footer: (
           <>

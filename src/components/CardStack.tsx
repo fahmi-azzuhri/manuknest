@@ -13,6 +13,7 @@ export type StackItem = {
   id: number | string;
   tone: string;
   icon: ReactNode;
+  iconClassName?: string;
   title: string;
   subtitle: string;
   byline?: ReactNode;
@@ -91,6 +92,9 @@ function StackCard({
   onToggle: () => void;
 }) {
   const bodyId = useId();
+  const iconClassName = ["stack-icon", item.iconClassName]
+    .filter(Boolean)
+    .join(" ");
   const itemRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const prevOpen = useRef(open);
@@ -179,7 +183,7 @@ function StackCard({
                 onToggle();
               }}
             >
-              <span className="stack-icon" aria-hidden="true">
+              <span className={iconClassName} aria-hidden="true">
                 {item.icon}
               </span>
               <span className="stack-text">
@@ -194,7 +198,7 @@ function StackCard({
             </button>
           ) : (
             <div className="stack-main">
-              <span className="stack-icon" aria-hidden="true">
+              <span className={iconClassName} aria-hidden="true">
                 {item.icon}
               </span>
               <span className="stack-text">

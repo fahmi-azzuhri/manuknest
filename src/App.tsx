@@ -346,6 +346,7 @@ export default function App() {
             description: legacy.description || "",
             domain: normalized.domain,
             faviconUrl: legacy.faviconUrl || "",
+            previewImageUrl: "",
             readStatus: legacy.readStatus === "done" ? "done" : "unread",
             metadataStatus: legacy.metadataStatus || "unavailable",
             tags: legacy.tags.map((tag) => tag.name),
@@ -1099,6 +1100,7 @@ export default function App() {
         description: note.trim(),
         domain: normalized.domain,
         faviconUrl: metadata?.faviconUrl ?? "",
+        previewImageUrl: metadata?.previewImageUrl ?? "",
         readStatus: "unread",
         ...(reminderDays > 0
           ? {

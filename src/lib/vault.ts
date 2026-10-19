@@ -9,6 +9,7 @@ export type LinkVaultData = {
   description: string;
   domain: string;
   faviconUrl: string;
+  previewImageUrl: string;
   readStatus: "unread" | "done";
   reminderAt?: string;
   metadataStatus: "pending" | "ready" | "unavailable";
@@ -132,6 +133,7 @@ export async function decryptLink(
   if (!isLinkVaultData(data)) throw new Error("Data link terenkripsi tidak valid.");
   return {
     ...data,
+    previewImageUrl: data.previewImageUrl ?? "",
     readStatus: data.readStatus === "reading" ? "unread" : data.readStatus,
   };
 }
@@ -197,6 +199,7 @@ function decodeBase64(value: string): Uint8Array {
 function isLinkVaultData(
   value: unknown,
 ): value is Omit<LinkVaultData, "readStatus"> & {
+  previewImageUrl?: string;
   readStatus: LinkVaultData["readStatus"] | "reading";
 } {
   if (!value || typeof value !== "object") return false;
@@ -207,6 +210,8 @@ function isLinkVaultData(
     typeof link.description === "string" &&
     typeof link.domain === "string" &&
     typeof link.faviconUrl === "string" &&
+    (link.previewImageUrl === undefined ||
+      typeof link.previewImageUrl === "string") &&
     (link.reminderAt === undefined ||
       (typeof link.reminderAt === "string" &&
         Number.isFinite(Date.parse(link.reminderAt)))) &&

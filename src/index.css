@@ -1095,6 +1095,37 @@ button:focus-visible, a:focus-visible, .tiko:focus-visible {
   font-size: 24px;
   font-weight: 600;
 }
+.stack-icon.stack-link-preview {
+  width: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .55);
+  font-family: inherit;
+  font-size: 16px;
+}
+.link-preview-mark {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+.link-preview-mark.without-cover { background: rgba(255, 255, 255, .55); }
+.link-preview-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.link-preview-favicon { display: grid; width: 100%; height: 100%; place-items: center; }
+.link-preview-favicon img { width: 28px; height: 28px; object-fit: contain; }
+.link-preview-favicon.is-overlay {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+.link-preview-favicon.is-overlay img { width: 14px; height: 14px; }
 .stack-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .stack-title { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stack-sub { color: var(--ink-2); font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

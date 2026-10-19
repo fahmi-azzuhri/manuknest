@@ -154,9 +154,7 @@ export default function AddLinkDialog({
             <option value={7}>7 hari setelah disimpan</option>
             <option value={30}>30 hari setelah disimpan</option>
           </select>
-          <small>
-            Pengingat tersimpan privat dan tetap terlihat di arsip.
-          </small>
+          <small>Pengingat tersimpan privat dan tetap terlihat di arsip.</small>
           {reminderDays > 0 && notificationPermission !== "granted" && (
             <div className="notification-permission">
               <button
@@ -170,8 +168,8 @@ export default function AddLinkDialog({
                 {notificationPermission === "denied"
                   ? "Izin notifikasi belum aktif. Pengingat tetap tampil di aplikasi."
                   : notificationPermission === "unsupported"
-                    ? "Notifikasi perangkat tidak tersedia. Pengingat tetap tampil di aplikasi."
-                    : "Notifikasi perangkat opsional. Pengingat juga tampil di aplikasi."}
+                  ? "Notifikasi perangkat tidak tersedia. Pengingat tetap tampil di aplikasi."
+                  : "Notifikasi perangkat opsional. Pengingat juga tampil di aplikasi."}
               </small>
             </div>
           )}
@@ -185,10 +183,6 @@ export default function AddLinkDialog({
             />
             <span>
               <strong>Bagikan di Explore</strong>
-              <small>
-                URL, judul, dan tag terpilih bisa dilihat pengguna lain. Catatan
-                dan status baca tetap privat.
-              </small>
             </span>
           </label>
         </div>
@@ -204,7 +198,7 @@ export default function AddLinkDialog({
         >
           <Bookmark size={16} />{" "}
           <span aria-live="polite">
-            {isSaving ? "Mencari judul & tag..." : "Simpan link"}
+            {isSaving ? "Sedang menyimpan..." : "Simpan link"}
           </span>
         </button>
       </form>

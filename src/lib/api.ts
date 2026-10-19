@@ -14,6 +14,7 @@ export type LinkMetadata = {
   title: string;
   description: string;
   faviconUrl: string;
+  previewImageUrl: string;
   source: "page" | "url";
 };
 
