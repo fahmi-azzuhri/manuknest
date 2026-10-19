@@ -4,6 +4,50 @@ export type SmartTagInput = {
   note?: string;
 };
 
+const adultContentTerms =
+  /\b(porn|pornography|pornographic|xxx|hentai|nsfw|nudes?|nudity|erotic|onlyfans|bokep|rule[\s-]?34|adult[- ]video|video[- ]dewasa|konten[- ]dewasa|video[- ]panas|explicit[- ]content|sex[- ]video|sex[- ]tape)\b/i;
+
+const adultContentDomains = [
+  "pornhub.com",
+  "xvideos.com",
+  "xnxx.com",
+  "xhamster.com",
+  "redtube.com",
+  "youporn.com",
+  "tube8.com",
+  "spankbang.com",
+  "brazzers.com",
+  "erome.com",
+  "nhentai.net",
+  "hentaihaven.xxx",
+  "chaturbate.com",
+  "onlyfans.com",
+];
+
+export function isAdultContentLink(url: string, title = ""): boolean {
+  try {
+    const value = url.trim();
+    const normalized = value.includes("://") ? value : `https://${value}`;
+    const host = new URL(normalized).hostname
+      .replace(/^www\./i, "")
+      .toLowerCase();
+    if (
+      adultContentDomains.some(
+        (domain) => host === domain || host.endsWith(`.${domain}`),
+      ) ||
+      host.split(".").some((label) =>
+        ["porn", "xxx", "hentai"].includes(label),
+      ) ||
+      adultContentTerms.test(host)
+    ) {
+      return true;
+    }
+  } catch {
+  }
+
+  return adultContentTerms.test(title);
+}
+
 const domainRules: Record<string, string> = {
   "github.com": "Development",
   "gitlab.com": "Development",

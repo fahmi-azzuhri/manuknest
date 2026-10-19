@@ -15,6 +15,7 @@ export type LinkMetadata = {
   description: string;
   faviconUrl: string;
   previewImageUrl: string;
+  isAdultContent: boolean;
   source: "page" | "url";
 };
 
@@ -115,7 +116,7 @@ export async function request<T>(
     });
   } catch {
     throw new ApiError(
-      "Server belum bisa dihubungi. Pastikan API Manuknest berjalan, lalu coba lagi.",
+      "Server belum bisa dihubungi. Laporkan ke Developer!",
       0,
     );
   }
@@ -127,7 +128,7 @@ export async function request<T>(
     payload = await response.json();
   } catch {
     throw new ApiError(
-      `Server mengembalikan respons ${response.status} yang tidak dapat dibaca.`,
+      `Server mengembalikan respons ${response.status}. Laporkan ke Developer!.`,
       response.status,
     );
   }

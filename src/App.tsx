@@ -44,7 +44,7 @@ import {
   scheduleReminderNotification,
   type ReminderPermission,
 } from "./lib/reminders";
-import { suggestSmartTags } from "./lib/tagging";
+import { isAdultContentLink, suggestSmartTags } from "./lib/tagging";
 import {
   createVaultCheck,
   decryptLink,
@@ -187,6 +187,7 @@ export default function App() {
   const [hasManualTagSelection, setHasManualTagSelection] = useState(false);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [metadataError, setMetadataError] = useState("");
+  const [metadataAdultContent, setMetadataAdultContent] = useState(false);
   const tagSuggestionRequestID = useRef(0);
   const tagSuggestionTimer = useRef<number | null>(null);
   const metadataRequestID = useRef(0);
@@ -676,6 +677,12 @@ export default function App() {
       ),
     [links, activeFilter, query],
   );
+  const isAdultContentBlocked =
+    metadataAdultContent || isAdultContentLink(url, title);
+  useEffect(() => {
+    if (isAdultContentBlocked) setSharePublic(false);
+  }, [isAdultContentBlocked]);
+
   const recentLinks = links.slice(0, 3);
   const displayedLinks = isSavedView ? visibleLinks : recentLinks;
   const dueReminders = links
@@ -773,6 +780,7 @@ export default function App() {
 
     setMetadataLoading(true);
     setMetadataError("");
+    setMetadataAdultContent(false);
     try {
       const normalized = await normalizeAndHashURL(rawURL, vaultKeys);
       const metadata = await request<LinkMetadata>("/api/links/metadata", {
@@ -783,6 +791,7 @@ export default function App() {
       if (requestID !== metadataRequestID.current) return;
 
       metadataCache.current = { url: normalized.url, metadata };
+      setMetadataAdultContent(metadata.isAdultContent);
       const pageTitle = metadata.title.trim();
       if (!pageTitle) {
         setMetadataError("Judul halaman tidak ditemukan.");
@@ -817,6 +826,7 @@ export default function App() {
     }
     metadataCache.current = null;
     setMetadataError("");
+    setMetadataAdultContent(false);
     setMetadataLoading(Boolean(nextUrl.trim()));
     metadataTimer.current = window.setTimeout(() => {
       metadataTimer.current = null;
@@ -856,6 +866,7 @@ export default function App() {
     }
     cancelPendingMetadata();
     metadataCache.current = null;
+    setMetadataAdultContent(false);
     titleWasManuallyEdited.current = false;
     autoTitle.current = "";
     setUrl(initialUrl);
@@ -1057,6 +1068,10 @@ export default function App() {
       const customTitle = title.trim();
       const pageTitle = metadata?.title.trim() ?? "";
       const savedTitle = customTitle || pageTitle || normalized.domain;
+      const adultContentBlocked =
+        metadata?.isAdultContent === true ||
+        isAdultContentLink(normalized.url, savedTitle);
+      const shouldShare = sharePublic && !adultContentBlocked;
       const tagPayload = {
         title: savedTitle,
         url: normalized.url,
@@ -1090,7 +1105,7 @@ export default function App() {
       setSmartTags(finalTags);
       setSelectedTags(finalTags);
 
-      if (sharePublic && new TextEncoder().encode(savedTitle).length > 500) {
+      if (shouldShare && new TextEncoder().encode(savedTitle).length > 500) {
         setAddError("Judul untuk link yang dibagikan terlalu panjang.");
         return;
       }
@@ -1118,13 +1133,16 @@ export default function App() {
         normalized.urlHash,
         vaultKeys,
       );
-      const result = await request<{ link: LinkItem }>("/api/links", {
+      const result = await request<{
+        link: LinkItem;
+        shareBlocked?: boolean;
+      }>("/api/links", {
         method: "POST",
         token: session.token,
         body: {
           urlHash: normalized.urlHash,
           ciphertext,
-          ...(sharePublic
+          ...(shouldShare
             ? {
                 share: {
                   url: normalized.url,
@@ -1154,7 +1172,9 @@ export default function App() {
       autoTitle.current = "";
       setSharePublic(false);
       closeAdd();
-      const saveNotice = metadataFailed
+      const saveNotice = result.shareBlocked || adultContentBlocked
+        ? "Link konten dewasa disimpan pribadi dan tidak dibagikan di Explore."
+        : metadataFailed
         ? metadata?.source === "url"
           ? "Judul halaman tidak dapat dibaca. Judul dari alamat link dipakai."
           : metadataUnavailableStatus === 405
@@ -1163,7 +1183,7 @@ export default function App() {
               ? "Metadata halaman tidak tersedia. Judul yang kamu isi tetap digunakan."
               : "Metadata halaman tidak tersedia. Nama domain dipakai. Link berhasil disimpan."
         : customTitle || pageTitle
-          ? sharePublic
+          ? result.link.shared
             ? "Link disimpan dan dibagikan di Explore."
             : "Link berhasil disimpan. Tiko ikut senang!"
           : "Judul halaman tidak ditemukan, nama domain dipakai. Link berhasil disimpan.";
@@ -1510,6 +1530,7 @@ export default function App() {
           title={title}
           note={note}
           sharePublic={sharePublic}
+          isAdultContentBlocked={isAdultContentBlocked}
           reminderDays={reminderDays}
           notificationPermission={notificationPermission}
           error={addError}

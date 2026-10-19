@@ -5,6 +5,7 @@ type AddLinkDialogProps = {
   title: string;
   note: string;
   sharePublic: boolean;
+  isAdultContentBlocked: boolean;
   reminderDays: number;
   notificationPermission: "unknown" | "granted" | "denied" | "unsupported";
   error: string;
@@ -30,6 +31,7 @@ export default function AddLinkDialog({
   title,
   note,
   sharePublic,
+  isAdultContentBlocked,
   reminderDays,
   notificationPermission,
   error,
@@ -178,13 +180,24 @@ export default function AddLinkDialog({
           <label className="share-choice">
             <input
               type="checkbox"
-              checked={sharePublic}
+              checked={!isAdultContentBlocked && sharePublic}
+              disabled={isAdultContentBlocked}
               onChange={(event) => onShareChange(event.target.checked)}
             />
             <span>
               <strong>Bagikan di Explore</strong>
+              {isAdultContentBlocked && (
+                <small role="status">
+                  Konten dewasa hanya bisa disimpan pribadi dan tidak dapat
+                  dibagikan di Explore.
+                </small>
+              )}
             </span>
           </label>
+          <small>
+            Pemeriksaan otomatis memakai URL dan judul. Link dewasa yang tidak
+            terdeteksi masih bisa dibagikan.
+          </small>
         </div>
         {error && (
           <p className="auth-error" role="alert">
