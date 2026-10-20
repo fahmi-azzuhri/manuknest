@@ -68,8 +68,6 @@ export type User = {
   username: string;
   musicVideoId: string;
   createdAt: string;
-  encryptionSalt: string;
-  encryptionCheck: string;
 };
 
 export type ProfileStats = {

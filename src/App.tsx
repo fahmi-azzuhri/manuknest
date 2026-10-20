@@ -5,7 +5,6 @@ import AppHeader from "./components/app/AppHeader";
 import {
   AuthScreen,
   AppLoadingScreen,
-  VaultUnlockScreen,
 } from "./components/app/AuthScreen";
 import BottomNavigation from "./components/app/BottomNavigation";
 import type { AppNavigationItem } from "./components/app/BottomNavigation";
@@ -38,15 +37,10 @@ import {
 } from "./lib/reminders";
 import { isAdultContentLink, suggestSmartTags } from "./lib/tagging";
 import {
-  createVaultCheck,
   decryptLink,
-  deriveVaultKeys,
   encryptLink,
-  generateVaultSalt,
   normalizeAndHashURL,
-  verifyVaultCheck,
   type LinkVaultData,
-  type VaultKeys,
 } from "./lib/vault";
 import {
   initialLocale,
@@ -104,12 +98,6 @@ function readSession(): AuthSession | null {
           musicVideoId:
             typeof user.musicVideoId === "string" ? user.musicVideoId : "",
           createdAt: typeof user.createdAt === "string" ? user.createdAt : "",
-          encryptionSalt:
-            typeof user.encryptionSalt === "string" ? user.encryptionSalt : "",
-          encryptionCheck:
-            typeof user.encryptionCheck === "string"
-              ? user.encryptionCheck
-              : "",
         },
       };
     }
@@ -152,7 +140,6 @@ export default function App() {
   const [themeTransition, setThemeTransition] =
     useState<ThemeTransition | null>(null);
   const [session, setSession] = useState<AuthSession | null>(readSession);
-  const [vaultKeys, setVaultKeys] = useState<VaultKeys | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
   const [popularLinks, setPopularLinks] = useState<PopularLink[]>([]);
   const [popularLoading, setPopularLoading] = useState(false);
@@ -315,14 +302,13 @@ export default function App() {
   }, [showAdd]);
 
   useEffect(() => {
-    if (!session || !vaultKeys) {
+    if (!session) {
       setLinks([]);
       setIsLoading(false);
       return;
     }
     let active = true;
     const token = session.token;
-    const keys = vaultKeys;
     setIsLoading(true);
     setLoadError("");
     async function loadLinks() {
@@ -332,11 +318,7 @@ export default function App() {
         const decodedLinks: SavedLink[] = [];
         for (const savedLink of savedLinks) {
           if (savedLink.ciphertext) {
-            const vault = await decryptLink(
-              savedLink.ciphertext,
-              savedLink.urlHash,
-              keys,
-            );
+            const vault = await decryptLink(savedLink.ciphertext);
             decodedLinks.push(
               toSavedLink(
                 savedLink.id,
@@ -350,7 +332,7 @@ export default function App() {
           }
           const legacy = savedLink.legacy;
           if (!legacy) throw new Error(copy.legacyLinkIncomplete);
-          const normalized = await normalizeAndHashURL(legacy.url, keys);
+          const normalized = await normalizeAndHashURL(legacy.url);
           const vault: LinkVaultData = {
             url: normalized.url,
             title: legacy.title || normalized.domain,
@@ -365,7 +347,7 @@ export default function App() {
               (collection) => collection.name,
             ),
           };
-          const ciphertext = await encryptLink(vault, normalized.urlHash, keys);
+          const ciphertext = await encryptLink(vault);
           await request<{ link: LinkItem }>(`/api/links/${savedLink.id}`, {
             method: "PATCH",
             token,
@@ -404,7 +386,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [session, reloadLinks, vaultKeys]);
+  }, [session, reloadLinks]);
 
   useEffect(() => {
     if (!session || activeNav !== "Explore" || sharedProfileUsername) return;
@@ -474,82 +456,27 @@ export default function App() {
     };
   }, [session?.token, activeNav, profileReload]);
 
-  async function prepareVault(
-    user: User,
-    token: string,
-    password: string,
-  ): Promise<{ user: User; keys: VaultKeys }> {
-    if (user.encryptionSalt && user.encryptionCheck) {
-      const keys = await deriveVaultKeys(password, user.encryptionSalt);
-      if (!(await verifyVaultCheck(user.encryptionCheck, keys))) {
-        throw new Error(copy.vaultKeyMismatch);
-      }
-      return { user, keys };
-    }
-    if (user.encryptionSalt || user.encryptionCheck) {
-      throw new Error(copy.vaultSettingsIncomplete);
-    }
-    const encryptionSalt = generateVaultSalt();
-    const keys = await deriveVaultKeys(password, encryptionSalt);
-    const encryptionCheck = await createVaultCheck(keys);
-    let configured: User;
-    try {
-      configured = await request<User>("/api/me/encryption", {
-        method: "POST",
-        token,
-        body: { encryptionSalt, encryptionCheck },
-      });
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
-      configured = await request<User>("/api/me", { token });
-    }
-    const verifiedKeys = await deriveVaultKeys(
-      password,
-      configured.encryptionSalt,
-    );
-    if (!(await verifyVaultCheck(configured.encryptionCheck, verifiedKeys))) {
-      throw new Error(copy.vaultKeyMismatch);
-    }
-    return { user: configured, keys: verifiedKeys };
-  }
-
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthBusy(true);
     setAuthError("");
     try {
-      let result: AuthResponse;
-      let keys: VaultKeys;
-      if (authMode === "register") {
-        const encryptionSalt = generateVaultSalt();
-        keys = await deriveVaultKeys(authPassword, encryptionSalt);
-        const encryptionCheck = await createVaultCheck(keys);
-        result = await request<AuthResponse>("/api/auth/register", {
+      const result = await request<AuthResponse>(
+        authMode === "register" ? "/api/auth/register" : "/api/auth/login",
+        {
           method: "POST",
-          body: {
-            email: authEmail,
-            password: authPassword,
-            username: authUsername,
-            musicUrl: authMusicUrl,
-            encryptionSalt,
-            encryptionCheck,
-          },
-        });
-      } else {
-        result = await request<AuthResponse>("/api/auth/login", {
-          method: "POST",
-          body: { email: authEmail, password: authPassword },
-        });
-        const prepared = await prepareVault(
-          result.user,
-          result.token,
-          authPassword,
-        );
-        result = { ...result, user: prepared.user };
-        keys = prepared.keys;
-      }
+          body:
+            authMode === "register"
+              ? {
+                  email: authEmail,
+                  password: authPassword,
+                  username: authUsername,
+                  musicUrl: authMusicUrl,
+                }
+              : { email: authEmail, password: authPassword },
+        },
+      );
       window.sessionStorage.setItem(sessionKey, JSON.stringify(result));
-      setVaultKeys(keys);
       setSession(result);
       setAuthUsername("");
       setAuthMusicUrl("");
@@ -557,35 +484,6 @@ export default function App() {
     } catch (error) {
       setAuthError(
         error instanceof Error ? error.message : copy.accountOpenFailed,
-      );
-    } finally {
-      setAuthBusy(false);
-    }
-  }
-
-  async function unlockVault(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!session) return;
-    setAuthBusy(true);
-    setAuthError("");
-    try {
-      const result = await request<AuthResponse>("/api/auth/login", {
-        method: "POST",
-        body: { email: session.user.email, password: authPassword },
-      });
-      const prepared = await prepareVault(
-        result.user,
-        result.token,
-        authPassword,
-      );
-      const unlocked = { ...result, user: prepared.user };
-      window.sessionStorage.setItem(sessionKey, JSON.stringify(unlocked));
-      setVaultKeys(prepared.keys);
-      setSession(unlocked);
-      setAuthPassword("");
-    } catch (error) {
-      setAuthError(
-        error instanceof Error ? error.message : copy.archiveOpenFailed,
       );
     } finally {
       setAuthBusy(false);
@@ -600,7 +498,6 @@ export default function App() {
     }
     window.sessionStorage.removeItem(sessionKey);
     setSession(null);
-    setVaultKeys(null);
     setLinks([]);
     setAuthError("");
     showNotice("");
@@ -779,7 +676,7 @@ export default function App() {
   async function loadLinkMetadata(nextUrl: string) {
     const requestID = ++metadataRequestID.current;
     const rawURL = nextUrl.trim();
-    if (!rawURL || !vaultKeys || !session) {
+    if (!rawURL || !session) {
       setMetadataLoading(false);
       return;
     }
@@ -788,7 +685,7 @@ export default function App() {
     setMetadataError("");
     setMetadataAdultContent(false);
     try {
-      const normalized = await normalizeAndHashURL(rawURL, vaultKeys);
+      const normalized = await normalizeAndHashURL(rawURL);
       const metadata = await request<LinkMetadata>("/api/links/metadata", {
         method: "POST",
         token: session.token,
@@ -1026,7 +923,7 @@ export default function App() {
   }
 
   async function saveLink() {
-    if (!session || !vaultKeys) return;
+    if (!session) return;
     const trimmed = url.trim();
     if (!trimmed) {
       setAddError(copy.pasteLinkError);
@@ -1034,7 +931,7 @@ export default function App() {
     }
     let normalized: Awaited<ReturnType<typeof normalizeAndHashURL>>;
     try {
-      normalized = await normalizeAndHashURL(trimmed, vaultKeys);
+      normalized = await normalizeAndHashURL(trimmed);
     } catch {
       setAddError(copy.invalidLinkError);
       return;
@@ -1132,11 +1029,7 @@ export default function App() {
         tags: finalTags,
         collections: [],
       };
-      const ciphertext = await encryptLink(
-        vault,
-        normalized.urlHash,
-        vaultKeys,
-      );
+      const ciphertext = await encryptLink(vault);
       const result = await request<{
         link: LinkItem;
         shareBlocked?: boolean;
@@ -1219,9 +1112,9 @@ export default function App() {
     vault: LinkVaultData,
     message: string,
   ) {
-    if (!session || !vaultKeys) return;
+    if (!session) return;
     try {
-      const ciphertext = await encryptLink(vault, link.urlHash, vaultKeys);
+      const ciphertext = await encryptLink(vault);
       await request<{ link: LinkItem }>(`/api/links/${link.id}`, {
         method: "PATCH",
         token: session.token,
@@ -1342,22 +1235,6 @@ export default function App() {
           setAuthMode(authMode === "register" ? "login" : "register");
           setAuthError("");
         }}
-      />
-    );
-  }
-
-  if (!vaultKeys) {
-    return (
-      <VaultUnlockScreen
-        locale={locale}
-        onLocaleChange={setLocale}
-        email={session.user.email}
-        password={authPassword}
-        busy={authBusy}
-        error={authError}
-        onSubmit={unlockVault}
-        onPasswordChange={setAuthPassword}
-        onSignOut={() => void signOut()}
       />
     );
   }
