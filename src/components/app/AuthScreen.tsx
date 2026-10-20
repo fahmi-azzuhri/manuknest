@@ -1,5 +1,7 @@
 import type { FormEvent } from "react";
 import { Feather } from "lucide-react";
+import { getTranslations, localizeMessage, type Locale } from "../../lib/i18n";
+import LanguageSwitch from "./LanguageSwitch";
 
 type AuthScreenProps = {
   mode: "login" | "register";
@@ -15,6 +17,8 @@ type AuthScreenProps = {
   onUsernameChange: (value: string) => void;
   onMusicUrlChange: (value: string) => void;
   onToggleMode: () => void;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
 };
 
 function Brand() {
@@ -42,7 +46,10 @@ export function AuthScreen({
   onUsernameChange,
   onMusicUrlChange,
   onToggleMode,
+  locale,
+  onLocaleChange,
 }: AuthScreenProps) {
+  const copy = getTranslations(locale);
   const isRegister = mode === "register";
 
   return (
@@ -51,18 +58,14 @@ export function AuthScreen({
         <Brand />
         <div className="auth-copy">
           <h1 id="auth-title">
-            {isRegister ? "Buat sarangmu." : "Masuk ke sarang"}
+            {isRegister ? copy.registerTitle : copy.loginTitle}
           </h1>
-          <p>
-            {isRegister
-              ? "Daftar untuk mulai menyimpan halaman yang ingin kamu temukan lagi."
-              : "Masuk untuk melanjutkan ke koleksi link yang kamu simpan"}
-          </p>
+          <p>{isRegister ? copy.registerDescription : copy.loginDescription}</p>
         </div>
         <form className="auth-form" onSubmit={onSubmit}>
           {isRegister && (
             <label className="field-label">
-              Username
+              {copy.username}
               <input
                 type="text"
                 autoComplete="username"
@@ -72,23 +75,23 @@ export function AuthScreen({
                 pattern="[A-Za-z0-9][A-Za-z0-9_]{2,23}"
                 value={username}
                 onChange={(event) => onUsernameChange(event.target.value)}
-                placeholder="contoh: tiko_7"
+                placeholder={copy.usernamePlaceholder}
               />
             </label>
           )}
           <label className="field-label">
-            Email
+            {copy.email}
             <input
               type="email"
               autoComplete="email"
               required
               value={email}
               onChange={(event) => onEmailChange(event.target.value)}
-              placeholder="nama@email.com"
+              placeholder={copy.emailPlaceholder}
             />
           </label>
           <label className="field-label">
-            Kata sandi
+            {copy.password}
             <input
               type="password"
               autoComplete={isRegister ? "new-password" : "current-password"}
@@ -97,24 +100,28 @@ export function AuthScreen({
               maxLength={72}
               value={password}
               onChange={(event) => onPasswordChange(event.target.value)}
-              placeholder={isRegister ? "Minimal 10 karakter" : "Kata sandi akunmu"}
+              placeholder={
+                isRegister
+                  ? copy.minimumPasswordPlaceholder
+                  : copy.accountPasswordPlaceholder
+              }
             />
           </label>
           {isRegister && (
             <label className="field-label">
-              Lagu profil (opsional)
+              {copy.profileSong} {copy.optional}
               <input
                 type="url"
                 value={musicUrl}
                 onChange={(event) => onMusicUrlChange(event.target.value)}
                 placeholder="https://music.youtube.com/watch?v=..."
               />
-              <small>Tempel link satu lagu dari YouTube Music.</small>
+              <small>{copy.youtubeMusicHint}</small>
             </label>
           )}
           {error && (
             <p className="auth-error" role="alert">
-              {error}
+              {localizeMessage(error, locale)}
             </p>
           )}
           <button
@@ -122,21 +129,30 @@ export function AuthScreen({
             type="submit"
             disabled={busy}
           >
-            {busy ? "Menghubungkan..." : isRegister ? "Buat akun" : "Masuk"}
+            {busy
+              ? copy.connecting
+              : isRegister
+              ? copy.createAccount
+              : copy.login}
           </button>
         </form>
         <p className="auth-switch">
-          {isRegister ? "Sudah punya akun?" : "Belum punya akun?"}{" "}
+          {isRegister ? copy.alreadyAccount : copy.noAccount}{" "}
           <button type="button" onClick={onToggleMode}>
-            {isRegister ? "Masuk" : "Daftar"}
+            {isRegister ? copy.login : copy.signUp}
           </button>
         </p>
+        <div className="auth-language-switch">
+          <LanguageSwitch locale={locale} onLocaleChange={onLocaleChange} />
+        </div>
       </section>
     </main>
   );
 }
 
 type VaultUnlockScreenProps = {
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
   email: string;
   password: string;
   busy: boolean;
@@ -147,6 +163,8 @@ type VaultUnlockScreenProps = {
 };
 
 export function VaultUnlockScreen({
+  locale,
+  onLocaleChange,
   email,
   password,
   busy,
@@ -155,21 +173,20 @@ export function VaultUnlockScreen({
   onPasswordChange,
   onSignOut,
 }: VaultUnlockScreenProps) {
+  const copy = getTranslations(locale);
+
   return (
     <main className="auth-screen">
       <section className="auth-card" aria-labelledby="unlock-title">
         <Brand />
         <div className="auth-copy">
-          <div className="eyebrow muted">ARSIP TERENKRIPSI</div>
-          <h1 id="unlock-title">Buka arsipmu.</h1>
-          <p>
-            Masukkan kata sandi untuk membuka link yang tersimpan di perangkat
-            ini.
-          </p>
+          <div className="eyebrow muted">{copy.encryptedArchive}</div>
+          <h1 id="unlock-title">{copy.unlockArchive}</h1>
+          <p>{copy.unlockDescription}</p>
         </div>
         <form className="auth-form" onSubmit={onSubmit}>
           <label className="field-label">
-            Kata sandi akun
+            {copy.accountPassword}
             <input
               type="password"
               autoComplete="current-password"
@@ -177,12 +194,12 @@ export function VaultUnlockScreen({
               maxLength={72}
               value={password}
               onChange={(event) => onPasswordChange(event.target.value)}
-              placeholder="Kata sandi akunmu"
+              placeholder={copy.accountPasswordPlaceholder}
             />
           </label>
           {error && (
             <p className="auth-error" role="alert">
-              {error}
+              {localizeMessage(error, locale)}
             </p>
           )}
           <button
@@ -190,24 +207,28 @@ export function VaultUnlockScreen({
             type="submit"
             disabled={busy}
           >
-            {busy ? "Membuka arsip..." : "Buka arsip"}
+            {busy ? copy.openingArchive : copy.openArchive}
           </button>
         </form>
         <p className="auth-switch">
-          Akun: <strong>{email}</strong>{" "}
+          {copy.account} <strong>{email}</strong>{" "}
           <button type="button" onClick={onSignOut}>
-            Ganti akun
+            {copy.switchAccount}
           </button>
         </p>
+        <div className="auth-language-switch">
+          <LanguageSwitch locale={locale} onLocaleChange={onLocaleChange} />
+        </div>
       </section>
     </main>
   );
 }
 
-export function AppLoadingScreen() {
+export function AppLoadingScreen({ locale }: { locale: Locale }) {
+  const copy = getTranslations(locale);
   return (
     <main className="auth-loading" role="status">
-      Memuat link tersimpan...
+      {copy.loadingSavedLinks}
     </main>
   );
 }

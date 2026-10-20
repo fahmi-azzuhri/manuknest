@@ -8,6 +8,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { getTranslations, type Locale } from "../lib/i18n";
 
 type YTPlayer = {
   playVideo(): void;
@@ -35,7 +36,7 @@ declare global {
 
 let apiPromise: Promise<void> | null = null;
 
-function loadYouTubeApi(): Promise<void> {
+function loadYouTubeApi(errorMessage: string): Promise<void> {
   if (window.YT?.Player) return Promise.resolve();
   if (!apiPromise) {
     apiPromise = new Promise<void>((resolve, reject) => {
@@ -48,7 +49,7 @@ function loadYouTubeApi(): Promise<void> {
       script.src = "https://www.youtube.com/iframe_api";
       script.onerror = () => {
         apiPromise = null;
-        reject(new Error("Pemutar YouTube gagal dimuat."));
+        reject(new Error(errorMessage));
       };
       document.head.appendChild(script);
     });
@@ -68,7 +69,14 @@ function cleanArtist(author: string): string {
   return author.replace(/\s*-\s*Topic$/i, "").trim();
 }
 
-export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
+export default function ProfileMusicPlayer({
+  videoId,
+  locale = "id",
+}: {
+  videoId: string;
+  locale?: Locale;
+}) {
+  const copy = getTranslations(locale);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const loopRef = useRef(false);
@@ -108,7 +116,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
       if (total > 0) setDuration(total);
     }
 
-    loadYouTubeApi()
+    loadYouTubeApi(copy.playerLoadFailed)
       .then(() => {
         if (cancelled || !window.YT) return;
         const YT = window.YT;
@@ -148,16 +156,14 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
             },
             onError: () => {
               if (cancelled) return;
-              setError("Lagu ini tidak bisa diputar di sini.");
+              setError(copy.songUnavailable);
             },
           },
         });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(
-          err instanceof Error ? err.message : "Pemutar belum bisa dimuat.",
-        );
+        setError(err instanceof Error ? err.message : copy.playerUnavailable);
       });
 
     return () => {
@@ -166,7 +172,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
       playerRef.current = null;
       host.replaceChildren();
     };
-  }, [videoId]);
+  }, [copy, videoId]);
 
   useEffect(() => {
     if (!playing) return;
@@ -220,7 +226,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
           href={musicUrl}
           target="_blank"
           rel="noreferrer"
-          aria-label="Buka lagu di YouTube Music"
+          aria-label={copy.openYouTubeMusic}
         >
           <span />
           <span />
@@ -230,7 +236,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
         <div className="music-info">
           <span className="music-source">YOUTUBE MUSIC</span>
           <h3 className="music-artist">
-            {artist || (ready ? "Lagu profil" : "Memuat lagu...")}
+            {artist || (ready ? copy.profileSongLabel : copy.songLoading)}
           </h3>
           <p className="music-song">{title || "\u00A0"}</p>
         </div>
@@ -247,7 +253,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
               { "--music-progress": `${progress}%` } as React.CSSProperties
             }
             onChange={(event) => seek(Number(event.target.value))}
-            aria-label="Posisi lagu"
+            aria-label={copy.songPosition}
           />
           <div className="music-time">
             <span>{formatTime(current)}</span>
@@ -261,7 +267,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
             className={muted ? "music-small is-active" : "music-small"}
             onClick={toggleMute}
             disabled={!ready}
-            aria-label={muted ? "Nyalakan suara" : "Bisukan suara"}
+            aria-label={muted ? copy.unmute : copy.mute}
             aria-pressed={muted}
           >
             {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
@@ -271,7 +277,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
             className="music-round"
             onClick={() => seek(current - 10)}
             disabled={!ready}
-            aria-label="Mundur 10 detik"
+            aria-label={copy.rewind}
           >
             <Rewind size={22} fill="currentColor" />
           </button>
@@ -280,7 +286,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
             className="music-round music-play"
             onClick={togglePlay}
             disabled={!ready}
-            aria-label={playing ? "Jeda" : "Putar"}
+            aria-label={playing ? copy.pause : copy.play}
           >
             {playing ? (
               <Pause size={34} fill="currentColor" />
@@ -293,7 +299,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
             className="music-round"
             onClick={() => seek(current + 10)}
             disabled={!ready}
-            aria-label="Maju 10 detik"
+            aria-label={copy.forward}
           >
             <FastForward size={22} fill="currentColor" />
           </button>
@@ -301,7 +307,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
             type="button"
             className={loop ? "music-small is-active" : "music-small"}
             onClick={toggleLoop}
-            aria-label={loop ? "Matikan ulang lagu" : "Ulangi lagu"}
+            aria-label={loop ? copy.stopRepeat : copy.repeat}
             aria-pressed={loop}
           >
             <Repeat size={22} />
@@ -312,7 +318,7 @@ export default function ProfileMusicPlayer({ videoId }: { videoId: string }) {
           <p className="music-error" role="alert">
             {error}{" "}
             <a href={musicUrl} target="_blank" rel="noreferrer">
-              Buka di YouTube Music
+              {copy.openYouTubeMusic}
             </a>
           </p>
         )}

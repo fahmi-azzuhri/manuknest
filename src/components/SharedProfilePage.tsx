@@ -2,11 +2,18 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, UserRound } from "lucide-react";
 import { ApiError, request, type SharedProfile } from "../lib/api";
 import ProfileMusicPlayer from "./ProfileMusicPlayer";
+import {
+  getTranslations,
+  localizeMessage,
+  translateCategory,
+  type Locale,
+} from "../lib/i18n";
 
 type SharedProfilePageProps = {
   username: string;
   token: string;
   onBack: () => void;
+  locale: Locale;
 };
 
 function hostOf(url: string): string {
@@ -21,11 +28,13 @@ export default function SharedProfilePage({
   username,
   token,
   onBack,
+  locale,
 }: SharedProfilePageProps) {
   const [profile, setProfile] = useState<SharedProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const copy = getTranslations(locale);
 
   useEffect(() => {
     let active = true;
@@ -40,9 +49,7 @@ export default function SharedProfilePage({
       .catch((cause: unknown) => {
         if (!active) return;
         setError(
-          cause instanceof ApiError
-            ? cause.message
-            : "Profil belum bisa dimuat. Coba lagi.",
+          cause instanceof ApiError ? cause.message : copy.profileLoadFailed,
         );
       })
       .finally(() => {
@@ -57,22 +64,22 @@ export default function SharedProfilePage({
     <section className="profile-page shared-profile-page">
       <button className="shared-profile-back" type="button" onClick={onBack}>
         <ArrowLeft size={17} />
-        Kembali ke Explore
+        {copy.backExplore}
       </button>
       {loading && (
         <div className="profile-state" role="status">
-          Memuat profil @{username}...
+          {copy.loadingProfile(username)}
         </div>
       )}
       {error && (
         <div className="profile-state error" role="alert">
-          <p>{error}</p>
+          <p>{localizeMessage(error, locale)}</p>
           <button
             className="profile-edit-button"
             type="button"
             onClick={() => setReload((current) => current + 1)}
           >
-            Coba lagi
+            {copy.retry}
           </button>
         </div>
       )}
@@ -80,19 +87,26 @@ export default function SharedProfilePage({
         <>
           <header className="profile-hero">
             <div className="profile-avatar" aria-hidden="true">
-              {profile.username[0]?.toUpperCase() ?? (
-                <UserRound size={34} />
-              )}
+              {profile.username[0]?.toUpperCase() ?? <UserRound size={34} />}
             </div>
             <h1>@{profile.username}</h1>
           </header>
           {profile.musicVideoId && (
-            <section className="profile-music" aria-label="Lagu profil">
-              <ProfileMusicPlayer videoId={profile.musicVideoId} />
+            <section
+              className="profile-music"
+              aria-label={copy.profileSongLabel}
+            >
+              <ProfileMusicPlayer
+                videoId={profile.musicVideoId}
+                locale={locale}
+              />
             </section>
           )}
-          <section className="shared-profile-links" aria-labelledby="shared-profile-links-title">
-            <h2 id="shared-profile-links-title">Link yang dibagikan</h2>
+          <section
+            className="shared-profile-links"
+            aria-labelledby="shared-profile-links-title"
+          >
+            <h2 id="shared-profile-links-title">{copy.sharedLinks}</h2>
             {profile.links.length ? (
               <ul>
                 {profile.links.map((link) => (
@@ -102,7 +116,11 @@ export default function SharedProfilePage({
                         <strong>{link.title}</strong>
                         <span>{hostOf(link.url)}</span>
                         {link.tags.length > 0 && (
-                          <span>{link.tags.join(" · ")}</span>
+                          <span>
+                            {link.tags
+                              .map((tag) => translateCategory(tag, locale))
+                              .join(" · ")}
+                          </span>
                         )}
                       </span>
                       <ExternalLink size={17} aria-hidden="true" />
@@ -112,7 +130,7 @@ export default function SharedProfilePage({
               </ul>
             ) : (
               <p className="shared-profile-empty">
-                Belum ada link yang dibagikan.
+                {copy.noSharedProfileLinks}
               </p>
             )}
           </section>

@@ -1,4 +1,6 @@
 import { Feather, LogOut, Moon, Sun } from "lucide-react";
+import { getTranslations, type Locale } from "../../lib/i18n";
+import LanguageSwitch from "./LanguageSwitch";
 
 type AppHeaderProps = {
   email: string;
@@ -6,6 +8,8 @@ type AppHeaderProps = {
   onHome: () => void;
   onToggleTheme: (origin: { x: number; y: number }) => void;
   onSignOut: () => void;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
 };
 
 export default function AppHeader({
@@ -14,7 +18,11 @@ export default function AppHeader({
   onHome,
   onToggleTheme,
   onSignOut,
+  locale,
+  onLocaleChange,
 }: AppHeaderProps) {
+  const copy = getTranslations(locale);
+
   return (
     <header className="topbar">
       <a
@@ -41,25 +49,32 @@ export default function AppHeader({
               y: bounds.top + bounds.height / 2,
             });
           }}
-          aria-label={`Aktifkan tema ${theme === "dark" ? "terang" : "gelap"}`}
+          aria-label={theme === "dark" ? copy.lightTheme : copy.darkTheme}
           aria-pressed={theme === "dark"}
           data-theme={theme}
         >
-          <span className="theme-toggle-icon theme-toggle-sun" aria-hidden="true">
+          <span
+            className="theme-toggle-icon theme-toggle-sun"
+            aria-hidden="true"
+          >
             <Sun size={19} />
           </span>
-          <span className="theme-toggle-icon theme-toggle-moon" aria-hidden="true">
+          <span
+            className="theme-toggle-icon theme-toggle-moon"
+            aria-hidden="true"
+          >
             <Moon size={18} />
           </span>
         </button>
         <button
           className="sign-out-button"
           onClick={onSignOut}
-          aria-label={`Keluar dari akun ${email}`}
+          aria-label={copy.signOutFrom(email)}
         >
           <LogOut size={16} />
-          <span>Keluar</span>
+          <span>{copy.signOut}</span>
         </button>
+        <LanguageSwitch locale={locale} onLocaleChange={onLocaleChange} />
       </div>
     </header>
   );

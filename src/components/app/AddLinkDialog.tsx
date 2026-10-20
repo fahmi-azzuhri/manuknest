@@ -1,4 +1,10 @@
 import { Bookmark, X } from "lucide-react";
+import {
+  getTranslations,
+  localizeMessage,
+  translateCategory,
+  type Locale,
+} from "../../lib/i18n";
 
 type AddLinkDialogProps = {
   url: string;
@@ -24,6 +30,7 @@ type AddLinkDialogProps = {
   onClose: () => void;
   onSubmit: () => void;
   onClearError: () => void;
+  locale: Locale;
 };
 
 export default function AddLinkDialog({
@@ -50,7 +57,10 @@ export default function AddLinkDialog({
   onClose,
   onSubmit,
   onClearError,
+  locale,
 }: AddLinkDialogProps) {
+  const copy = getTranslations(locale);
+
   return (
     <div
       className="modal-backdrop"
@@ -69,23 +79,22 @@ export default function AddLinkDialog({
       >
         <div className="modal-head">
           <div>
-            <h2 id="add-link-title">Simpan link</h2>
+            <h2 id="add-link-title">{copy.saveDialogTitle}</h2>
             <p className="modal-description" id="add-link-description">
-              Judul dan tag akan dicari otomatis saat disimpan. Kamu tetap bisa
-              mengubahnya.
+              {copy.saveDialogDescription}
             </p>
           </div>
           <button
             className="icon-button"
             type="button"
             onClick={onClose}
-            aria-label="Tutup"
+            aria-label={copy.close}
           >
             <X size={18} />
           </button>
         </div>
         <label className="field-label">
-          URL link
+          {copy.linkUrl}
           <input
             autoFocus
             required
@@ -94,31 +103,31 @@ export default function AddLinkDialog({
               onUrlChange(event.target.value);
               onClearError();
             }}
-            placeholder="https://contoh.com"
+            placeholder={copy.linkUrl}
           />
         </label>
         <label className="field-label">
-          Judul link
+          {copy.linkTitle}
           <input
             value={title}
             maxLength={500}
             onChange={(event) => onTitleChange(event.target.value)}
             placeholder={
               metadataLoading
-                ? "Mengambil judul halaman..."
-                : "Judul akan diisi otomatis"
+                ? copy.fetchingTitle
+                : copy.automaticTitlePlaceholder
             }
           />
           {(metadataLoading || metadataError) && (
             <small aria-live="polite">
               {metadataLoading
-                ? "Mengambil judul dari halaman..."
-                : metadataError}
+                ? copy.fetchingTitleShort
+                : localizeMessage(metadataError, locale)}
             </small>
           )}
         </label>
         <div className="field-label smart-tag-field">
-          <span>Tag arsip</span>
+          <span>{copy.archiveTags}</span>
           <div className="filter-chips smart-tag-chips">
             {smartTags.map((tag) => (
               <button
@@ -128,32 +137,32 @@ export default function AddLinkDialog({
                 aria-pressed={selectedTags.includes(tag)}
                 onClick={() => onSmartTagToggle(tag)}
               >
-                {tag}
+                {translateCategory(tag, locale)}
               </button>
             ))}
           </div>
         </div>
         <label className="field-label">
-          Catatan kecil{" "}
+          {copy.smallNote}{" "}
           <textarea
             value={note}
             onChange={(event) => onNoteChange(event.target.value)}
-            placeholder="Kenapa link ini menarik buat kamu?"
+            placeholder={copy.whyInteresting}
             rows={3}
           />
         </label>
         <label className="field-label">
-          Pengingat baca
+          {copy.readingReminder}
           <select
             value={reminderDays}
             onChange={(event) =>
               onReminderDaysChange(Number(event.target.value))
             }
           >
-            <option value={0}>Tidak ada</option>
-            <option value={1}>1 hari setelah disimpan</option>
-            <option value={7}>7 hari setelah disimpan</option>
-            <option value={30}>30 hari setelah disimpan</option>
+            <option value={0}>{copy.noReminder}</option>
+            <option value={1}>{copy.reminderOneDay}</option>
+            <option value={7}>{copy.reminderSevenDays}</option>
+            <option value={30}>{copy.reminderThirtyDays}</option>
           </select>
           {reminderDays > 0 && notificationPermission !== "granted" && (
             <div className="notification-permission">
@@ -162,14 +171,14 @@ export default function AddLinkDialog({
                 type="button"
                 onClick={onRequestNotifications}
               >
-                Izinkan notifikasi perangkat
+                {copy.enableNotifications}
               </button>
               <small aria-live="polite">
                 {notificationPermission === "denied"
-                  ? "Izin notifikasi belum aktif. Pengingat tetap tampil di aplikasi."
+                  ? copy.notificationsInactive
                   : notificationPermission === "unsupported"
-                  ? "Notifikasi perangkat tidak tersedia. Pengingat tetap tampil di aplikasi."
-                  : "Notifikasi perangkat opsional. Pengingat juga tampil di aplikasi."}
+                  ? copy.notificationsUnavailable
+                  : copy.notificationsOptional}
               </small>
             </div>
           )}
@@ -183,14 +192,17 @@ export default function AddLinkDialog({
               onChange={(event) => onShareChange(event.target.checked)}
             />
             <span>
-              <strong>Bagikan di Explore</strong>
-              {isAdultContentBlocked && <small role="status"></small>}
+              <strong>{copy.shareExplore}</strong>
+              {isAdultContentBlocked && (
+                <small role="status">{copy.adultPrivate}</small>
+              )}
             </span>
           </label>
         </div>
         {error && (
           <p className="auth-error" role="alert">
-            {error}
+            {localizeMessage(error, locale)}
+            {localizeMessage(error, locale)}
           </p>
         )}
         <button
@@ -200,7 +212,7 @@ export default function AddLinkDialog({
         >
           <Bookmark size={16} />{" "}
           <span aria-live="polite">
-            {isSaving ? "Sedang menyimpan..." : "Simpan link"}
+            {isSaving ? copy.saving : copy.saveDialogTitle}
           </span>
         </button>
       </form>

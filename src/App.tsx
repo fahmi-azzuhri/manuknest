@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import SharedProfilePage from "./components/SharedProfilePage";
 import AddLinkDialog from "./components/app/AddLinkDialog";
 import AppHeader from "./components/app/AppHeader";
@@ -16,9 +10,7 @@ import {
 import BottomNavigation from "./components/app/BottomNavigation";
 import type { AppNavigationItem } from "./components/app/BottomNavigation";
 import CategoryFilters from "./components/app/CategoryFilters";
-import HomeDashboard, {
-  HomeReminder,
-} from "./components/app/HomeDashboard";
+import HomeDashboard, { HomeReminder } from "./components/app/HomeDashboard";
 import LinkList from "./components/app/LinkList";
 import Notice from "./components/app/Notice";
 import ProfilePage from "./components/app/ProfilePage";
@@ -56,6 +48,13 @@ import {
   type LinkVaultData,
   type VaultKeys,
 } from "./lib/vault";
+import {
+  initialLocale,
+  getTranslations,
+  localizeMessage,
+  localeStorageKey,
+  type Locale,
+} from "./lib/i18n";
 
 const sessionKey = "tumpuk.session";
 
@@ -147,6 +146,8 @@ function toSavedLink(
 }
 
 export default function App() {
+  const [locale, setLocale] = useState<Locale>(initialLocale);
+  const copy = getTranslations(locale);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [themeTransition, setThemeTransition] =
     useState<ThemeTransition | null>(null);
@@ -219,12 +220,17 @@ export default function App() {
     [links],
   );
 
-  const mascotSpeech =
+  const localizedMascotSpeech =
     links.length >= 3
-      ? "Cuit! Ada link menarik? Simpan dulu, ya."
+      ? copy.mascotChirp
       : links.length === 0
-        ? "Simpan sampai 3 link agar Tiko bisa menetas."
-        : `Simpan ${3 - links.length} link lagi, yuk, biar telurnya menetas.`;
+      ? copy.mascotHatchHint
+      : copy.mascotHatchCount(3 - links.length);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    window.localStorage.setItem(localeStorageKey, locale);
+  }, [locale]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -246,8 +252,10 @@ export default function App() {
           setNotificationPermission("unsupported");
           showNotice(
             error instanceof Error
-              ? `Status notifikasi tidak dapat dibaca: ${error.message}`
-              : "Status notifikasi tidak dapat dibaca.",
+              ? copy.notificationStatusError(
+                  localizeMessage(error.message, locale),
+                )
+              : copy.statusNotificationUnreadable,
             true,
           );
         }
@@ -256,7 +264,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     let active = true;
@@ -268,6 +276,7 @@ export default function App() {
               ? scheduleReminderNotification(
                   link.id,
                   link.vault.reminderAt,
+                  locale,
                 )
               : cancelReminderNotification(link.id),
           ),
@@ -276,8 +285,10 @@ export default function App() {
         if (active) {
           showNotice(
             error instanceof Error
-              ? `Notifikasi pengingat belum bisa dijadwalkan: ${error.message}`
-              : "Notifikasi pengingat belum bisa dijadwalkan.",
+              ? copy.reminderScheduleError(
+                  localizeMessage(error.message, locale),
+                )
+              : copy.reminderScheduleError(""),
             true,
           );
         }
@@ -287,7 +298,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [links]);
+  }, [links, locale]);
 
   function showNotice(message: string, isError = false) {
     setNotice(message);
@@ -338,8 +349,7 @@ export default function App() {
             continue;
           }
           const legacy = savedLink.legacy;
-          if (!legacy)
-            throw new Error("Ada link lama yang datanya tidak lengkap.");
+          if (!legacy) throw new Error(copy.legacyLinkIncomplete);
           const normalized = await normalizeAndHashURL(legacy.url, keys);
           const vault: LinkVaultData = {
             url: normalized.url,
@@ -383,7 +393,7 @@ export default function App() {
           setAuthError(error.message);
         } else {
           setLoadError(
-            error instanceof Error ? error.message : "Link belum bisa dimuat.",
+            error instanceof Error ? error.message : copy.linkLoadFailed,
           );
         }
       } finally {
@@ -414,9 +424,7 @@ export default function App() {
           return;
         }
         setPopularError(
-          error instanceof Error
-            ? error.message
-            : "Link Explore belum bisa dimuat.",
+          error instanceof Error ? error.message : copy.exploreLoadFailed,
         );
       })
       .finally(() => {
@@ -455,7 +463,7 @@ export default function App() {
           setAuthError(error.message);
         }
         setProfileError(
-          error instanceof Error ? error.message : "Profil belum bisa dimuat.",
+          error instanceof Error ? error.message : copy.profileLoadFailed,
         );
       })
       .finally(() => {
@@ -474,12 +482,12 @@ export default function App() {
     if (user.encryptionSalt && user.encryptionCheck) {
       const keys = await deriveVaultKeys(password, user.encryptionSalt);
       if (!(await verifyVaultCheck(user.encryptionCheck, keys))) {
-        throw new Error("Kunci enkripsi arsip tidak cocok dengan akun ini.");
+        throw new Error(copy.vaultKeyMismatch);
       }
       return { user, keys };
     }
     if (user.encryptionSalt || user.encryptionCheck) {
-      throw new Error("Pengaturan enkripsi akun belum lengkap. Hubungi admin.");
+      throw new Error(copy.vaultSettingsIncomplete);
     }
     const encryptionSalt = generateVaultSalt();
     const keys = await deriveVaultKeys(password, encryptionSalt);
@@ -500,7 +508,7 @@ export default function App() {
       configured.encryptionSalt,
     );
     if (!(await verifyVaultCheck(configured.encryptionCheck, verifiedKeys))) {
-      throw new Error("Kunci enkripsi arsip tidak cocok dengan akun ini.");
+      throw new Error(copy.vaultKeyMismatch);
     }
     return { user: configured, keys: verifiedKeys };
   }
@@ -548,7 +556,7 @@ export default function App() {
       setAuthPassword("");
     } catch (error) {
       setAuthError(
-        error instanceof Error ? error.message : "Akun belum bisa dibuka.",
+        error instanceof Error ? error.message : copy.accountOpenFailed,
       );
     } finally {
       setAuthBusy(false);
@@ -577,7 +585,7 @@ export default function App() {
       setAuthPassword("");
     } catch (error) {
       setAuthError(
-        error instanceof Error ? error.message : "Arsip belum bisa dibuka.",
+        error instanceof Error ? error.message : copy.archiveOpenFailed,
       );
     } finally {
       setAuthBusy(false);
@@ -588,10 +596,7 @@ export default function App() {
     try {
       await cancelAllReminderNotifications();
     } catch (error) {
-      console.error(
-        "Gagal membatalkan notifikasi pengingat sebelum keluar.",
-        error,
-      );
+      console.error("Could not cancel reminders before signing out.", error);
     }
     window.sessionStorage.removeItem(sessionKey);
     setSession(null);
@@ -637,25 +642,22 @@ export default function App() {
               ? scheduleReminderNotification(
                   link.id,
                   link.vault.reminderAt,
+                  locale,
                 )
               : Promise.resolve(),
           ),
         );
-        showNotice("Notifikasi pengingat sudah diizinkan.");
+        showNotice(copy.notificationAllowed);
       } else if (permission === "unsupported") {
-        showNotice(
-          "Notifikasi perangkat tidak tersedia. Pengingat tetap tampil di aplikasi.",
-        );
+        showNotice(copy.notificationsUnavailable);
       } else {
-        showNotice(
-          "Izin notifikasi belum aktif. Pengingat tetap tampil di aplikasi.",
-        );
+        showNotice(copy.notificationsInactive);
       }
     } catch (error) {
       showNotice(
         error instanceof Error
-          ? `Izin notifikasi tidak dapat diaktifkan: ${error.message}`
-          : "Izin notifikasi tidak dapat diaktifkan.",
+          ? copy.notificationEnableError(localizeMessage(error.message, locale))
+          : copy.notificationEnableError(""),
         true,
       );
     }
@@ -720,7 +722,11 @@ export default function App() {
     });
   }
 
-  async function refreshSmartTags(nextUrl = url, nextTitle = title, nextNote = note) {
+  async function refreshSmartTags(
+    nextUrl = url,
+    nextTitle = title,
+    nextNote = note,
+  ) {
     const requestID = ++tagSuggestionRequestID.current;
     const payload = {
       title: nextTitle,
@@ -794,11 +800,11 @@ export default function App() {
       setMetadataAdultContent(metadata.isAdultContent);
       const pageTitle = metadata.title.trim();
       if (!pageTitle) {
-        setMetadataError("Judul halaman tidak ditemukan.");
+        setMetadataError(copy.invalidPageTitle);
         return;
       }
       if (metadata.source === "url") {
-        setMetadataError("Judul halaman dibatasi. Judul dari alamat link dipakai.");
+        setMetadataError(copy.metadataTitleRestricted);
       }
       if (!titleWasManuallyEdited.current) {
         autoTitle.current = pageTitle;
@@ -809,8 +815,8 @@ export default function App() {
       if (requestID !== metadataRequestID.current) return;
       setMetadataError(
         error instanceof ApiError && error.status === 405
-          ? "API belum diperbarui untuk mengambil judul. Hubungi pengelola aplikasi."
-          : "Judul halaman belum bisa diambil otomatis.",
+          ? copy.metadataApiOutdated
+          : copy.metadataUnavailable,
       );
     } finally {
       if (requestID === metadataRequestID.current) {
@@ -970,7 +976,7 @@ export default function App() {
         return updated;
       });
       setProfileEditOpen(false);
-      setProfileSaveNotice("Profil berhasil diperbarui.");
+      setProfileSaveNotice(copy.profileUpdated);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         window.sessionStorage.removeItem(sessionKey);
@@ -978,7 +984,7 @@ export default function App() {
         setAuthError(error.message);
       }
       setProfileSaveError(
-        error instanceof Error ? error.message : "Profil belum bisa disimpan.",
+        error instanceof Error ? error.message : copy.profileNotSaved,
       );
     } finally {
       setProfileSaving(false);
@@ -1010,9 +1016,7 @@ export default function App() {
         setAuthError(error.message);
       } else {
         showNotice(
-          error instanceof Error
-            ? error.message
-            : "Suka belum bisa diperbarui.",
+          error instanceof Error ? error.message : copy.likeUpdateFailed,
           true,
         );
       }
@@ -1025,14 +1029,14 @@ export default function App() {
     if (!session || !vaultKeys) return;
     const trimmed = url.trim();
     if (!trimmed) {
-      setAddError("Tempel link yang ingin kamu simpan.");
+      setAddError(copy.pasteLinkError);
       return;
     }
     let normalized: Awaited<ReturnType<typeof normalizeAndHashURL>>;
     try {
       normalized = await normalizeAndHashURL(trimmed, vaultKeys);
     } catch {
-      setAddError("Format link belum valid. Coba periksa lagi.");
+      setAddError(copy.invalidLinkError);
       return;
     }
     setAddError("");
@@ -1106,7 +1110,7 @@ export default function App() {
       setSelectedTags(finalTags);
 
       if (shouldShare && new TextEncoder().encode(savedTitle).length > 500) {
-        setAddError("Judul untuk link yang dibagikan terlalu panjang.");
+        setAddError(copy.sharedTitleTooLong);
         return;
       }
       const vault: LinkVaultData = {
@@ -1172,24 +1176,25 @@ export default function App() {
       autoTitle.current = "";
       setSharePublic(false);
       closeAdd();
-      const saveNotice = result.shareBlocked || adultContentBlocked
-        ? "Link konten dewasa disimpan pribadi dan tidak dibagikan di Explore."
-        : metadataFailed
-        ? metadata?.source === "url"
-          ? "Judul halaman tidak dapat dibaca. Judul dari alamat link dipakai."
-          : metadataUnavailableStatus === 405
-            ? "API belum diperbarui untuk mengambil judul otomatis. Perbarui backend API agar fitur ini berfungsi."
+      const saveNotice =
+        result.shareBlocked || adultContentBlocked
+          ? copy.adultPrivate
+          : metadataFailed
+          ? metadata?.source === "url"
+            ? copy.metadataTitleUnreadable
+            : metadataUnavailableStatus === 405
+            ? copy.metadataApiUpdate
             : customTitle
-              ? "Metadata halaman tidak tersedia. Judul yang kamu isi tetap digunakan."
-              : "Metadata halaman tidak tersedia. Nama domain dipakai. Link berhasil disimpan."
-        : customTitle || pageTitle
+            ? copy.metadataCustomTitleFallback
+            : copy.metadataDomainFallback
+          : customTitle || pageTitle
           ? result.link.shared
-            ? "Link disimpan dan dibagikan di Explore."
-            : "Link berhasil disimpan. Tiko ikut senang!"
-          : "Judul halaman tidak ditemukan, nama domain dipakai. Link berhasil disimpan.";
+            ? copy.savedAndShared
+            : copy.savedWithTiko
+          : copy.missingTitleFallback;
       showNotice(
         tagSuggestionsFailed
-          ? `${saveNotice} Saran tag lokal dipakai.`
+          ? `${saveNotice} ${copy.localTagSuggestions}`
           : saveNotice,
       );
       openArchive();
@@ -1201,7 +1206,7 @@ export default function App() {
         setAuthError(error.message);
       } else {
         setAddError(
-          error instanceof Error ? error.message : "Link belum bisa disimpan.",
+          error instanceof Error ? error.message : copy.saveLinkFailed,
         );
       }
     } finally {
@@ -1243,9 +1248,7 @@ export default function App() {
         setAuthError(error.message);
       } else {
         showNotice(
-          error instanceof Error
-            ? error.message
-            : "Perubahan link belum bisa disimpan.",
+          error instanceof Error ? error.message : copy.changesNotSaved,
           true,
         );
       }
@@ -1261,9 +1264,7 @@ export default function App() {
     void updateSavedLink(
       link,
       vault,
-      status === "done"
-        ? "Link ditandai selesai. Pengingatnya dihapus."
-        : "Status baca link diperbarui.",
+      status === "done" ? copy.completedLink : copy.readingStatusUpdated,
     );
   }
 
@@ -1273,16 +1274,12 @@ export default function App() {
       ...link.vault,
       reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
-    void updateSavedLink(link, vault, "Pengingat ditunda 1 hari.");
+    void updateSavedLink(link, vault, copy.reminderPostponed);
   }
 
   async function deleteSavedLink(link: SavedLink) {
     if (!session || deletingLinkID !== null) return;
-    if (
-      !window.confirm(
-        `Hapus "${link.title}" dari arsipmu? Tindakan ini tidak bisa dibatalkan.`,
-      )
-    ) {
+    if (!window.confirm(copy.confirmDeleteLink(link.title))) {
       return;
     }
     setDeletingLinkID(link.id);
@@ -1298,13 +1295,15 @@ export default function App() {
       } catch (error) {
         showNotice(
           error instanceof Error
-            ? `Link dihapus, tetapi notifikasinya belum bisa dibatalkan: ${error.message}`
-            : "Link dihapus, tetapi notifikasinya belum bisa dibatalkan.",
+            ? copy.deletedButNotificationFailed(
+                localizeMessage(error.message, locale),
+              )
+            : copy.linkDeleteNotificationError,
           true,
         );
         return;
       }
-      showNotice(`"${link.title}" dihapus dari arsip.`);
+      showNotice(copy.deleteLinkNotice(link.title));
       window.setTimeout(() => showNotice(""), 3000);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -1313,7 +1312,7 @@ export default function App() {
         setAuthError(error.message);
       } else {
         showNotice(
-          error instanceof Error ? error.message : "Link belum bisa dihapus.",
+          error instanceof Error ? error.message : copy.linkNotDeleted,
           true,
         );
       }
@@ -1325,6 +1324,8 @@ export default function App() {
   if (!session) {
     return (
       <AuthScreen
+        locale={locale}
+        onLocaleChange={setLocale}
         mode={authMode}
         busy={authBusy}
         error={authError}
@@ -1348,6 +1349,8 @@ export default function App() {
   if (!vaultKeys) {
     return (
       <VaultUnlockScreen
+        locale={locale}
+        onLocaleChange={setLocale}
         email={session.user.email}
         password={authPassword}
         busy={authBusy}
@@ -1360,13 +1363,15 @@ export default function App() {
   }
 
   if (isLoading) {
-    return <AppLoadingScreen />;
+    return <AppLoadingScreen locale={locale} />;
   }
 
   return (
     <div className="app-root">
       <div className="app-shell">
         <AppHeader
+          locale={locale}
+          onLocaleChange={setLocale}
           email={session.user.email}
           theme={theme}
           onHome={openHome}
@@ -1377,12 +1382,14 @@ export default function App() {
         <main>
           {isSharedProfileView ? (
             <SharedProfilePage
+              locale={locale}
               username={sharedProfileUsername}
               token={session.token}
               onBack={openPopular}
             />
           ) : isProfileView ? (
             <ProfilePage
+              locale={locale}
               user={session.user}
               stats={profileStats}
               loading={profileLoading}
@@ -1407,9 +1414,10 @@ export default function App() {
             <>
               {isHome && (
                 <HomeDashboard
+                  locale={locale}
                   links={links}
                   url={url}
-                  mascotSpeech={mascotSpeech}
+                  mascotSpeech={localizedMascotSpeech}
                   notice={notice}
                   noticeIsError={noticeIsError}
                   onUrlChange={setUrl}
@@ -1422,15 +1430,15 @@ export default function App() {
                   message={notice}
                   isError={noticeIsError}
                   onClose={() => showNotice("")}
+                  locale={locale}
                 />
               )}
               {!isPopularView && (
                 <ReadingReminders
+                  locale={locale}
                   links={dueReminders}
                   onSnooze={snoozeReminder}
-                  onMarkFinished={(link) =>
-                    updateReadingStatus(link, "done")
-                  }
+                  onMarkFinished={(link) => updateReadingStatus(link, "done")}
                 />
               )}
 
@@ -1440,21 +1448,21 @@ export default function App() {
                     <h2>
                       <span className="hl">
                         {isSavedView
-                          ? "Link tersimpan"
+                          ? copy.saved
                           : isPopularView
-                            ? "Explore"
-                            : "Link terbaru"}
+                          ? copy.explore
+                          : copy.latestLinks}
                       </span>
                     </h2>
                     {isPopularView && (
                       <p className="collection-description">
-                        Jelajahi link yang dibagikan pengguna lain.
+                        {copy.exploreDescription}
                       </p>
                     )}
                   </div>
                   {isHome && (
                     <button className="text-button" onClick={openArchive}>
-                      Lihat semua
+                      {copy.viewAll}
                     </button>
                   )}
                 </div>
@@ -1466,12 +1474,13 @@ export default function App() {
                         <input
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
-                          placeholder="Cari sesuatu yang kamu simpan..."
-                          aria-label="Cari link tersimpan"
+                          placeholder={copy.searchSavedPlaceholder}
+                          aria-label={copy.searchSavedLabel}
                         />
                       </label>
                     </div>
                     <CategoryFilters
+                      locale={locale}
                       categories={filters}
                       activeCategory={activeFilter}
                       onCategoryChange={setActiveFilter}
@@ -1479,6 +1488,7 @@ export default function App() {
                   </>
                 )}
                 <LinkList
+                  locale={locale}
                   isHome={isHome}
                   isSavedView={isSavedView}
                   isPopularView={isPopularView}
@@ -1493,9 +1503,7 @@ export default function App() {
                   onRetryPopular={() =>
                     setReloadPopular((current) => current + 1)
                   }
-                  onRetryLinks={() =>
-                    setReloadLinks((current) => current + 1)
-                  }
+                  onRetryLinks={() => setReloadLinks((current) => current + 1)}
                   onOpenHome={openHome}
                   onOpenAdd={() => openAdd()}
                   onOpenArchive={openArchive}
@@ -1510,11 +1518,12 @@ export default function App() {
                   }}
                 />
               </section>
-              {isHome && <HomeReminder />}
+              {isHome && <HomeReminder locale={locale} />}
             </>
           )}
         </main>
         <BottomNavigation
+          locale={locale}
           activeItem={activeNav}
           onNavigate={(item) => {
             if (item === "Home") openHome();
@@ -1526,6 +1535,7 @@ export default function App() {
       </div>
       {showAdd && (
         <AddLinkDialog
+          locale={locale}
           url={url}
           title={title}
           note={note}

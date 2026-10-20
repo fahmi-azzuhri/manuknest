@@ -1,25 +1,34 @@
 import type { SavedLink } from "./types";
 import { formatShortDate } from "./types";
+import { getTranslations, type Locale } from "../../lib/i18n";
 
 type ReadingRemindersProps = {
+  locale: Locale;
   links: SavedLink[];
   onSnooze: (link: SavedLink) => void;
   onMarkFinished: (link: SavedLink) => void;
 };
 
 export default function ReadingReminders({
+  locale,
+
   links,
   onSnooze,
   onMarkFinished,
 }: ReadingRemindersProps) {
+  const copy = getTranslations(locale);
+
   if (links.length === 0) return null;
 
   return (
-    <section className="reading-reminders" aria-labelledby="reading-reminders-title">
+    <section
+      className="reading-reminders"
+      aria-labelledby="reading-reminders-title"
+    >
       <div className="reading-reminders-heading">
         <div>
-          <h2 id="reading-reminders-title">Pengingat bacaan</h2>
-          <p>Link yang sudah waktunya kamu buka lagi.</p>
+          <h2 id="reading-reminders-title">{copy.readingReminders}</h2>
+          <p>{copy.remindersDue}</p>
         </div>
         <span>{links.length}</span>
       </div>
@@ -30,14 +39,18 @@ export default function ReadingReminders({
               <a href={link.href} target="_blank" rel="noreferrer">
                 {link.title}
               </a>
-              <span>Pengingat {formatShortDate(link.vault.reminderAt ?? "")}</span>
+              <span>
+                {copy.reminder(
+                  formatShortDate(link.vault.reminderAt ?? "", locale),
+                )}
+              </span>
             </div>
             <div className="reading-reminder-actions">
               <button type="button" onClick={() => onSnooze(link)}>
-                Tunda 1 hari
+                {copy.snooze}
               </button>
               <button type="button" onClick={() => onMarkFinished(link)}>
-                Selesai
+                {copy.done}
               </button>
             </div>
           </li>

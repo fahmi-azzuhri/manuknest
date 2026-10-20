@@ -1,7 +1,12 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { getTranslations, type Locale } from "./i18n";
 
-export type ReminderPermission = "unknown" | "granted" | "denied" | "unsupported";
+export type ReminderPermission =
+  | "unknown"
+  | "granted"
+  | "denied"
+  | "unsupported";
 
 const maxTimeout = 2_147_000_000;
 const browserTimers = new Map<number, number>();
@@ -26,28 +31,33 @@ export async function requestReminderPermission(): Promise<ReminderPermission> {
   return permission === "granted"
     ? "granted"
     : permission === "denied"
-      ? "denied"
-      : "unknown";
+    ? "denied"
+    : "unknown";
 }
 
 export async function scheduleReminderNotification(
   id: number,
   reminderAt: string,
+  locale: Locale = "id",
 ): Promise<void> {
+  const copy = getTranslations(locale);
   const timestamp = Date.parse(reminderAt);
   if (!Number.isFinite(timestamp)) return;
   await cancelReminderNotification(id);
 
   if (Capacitor.isNativePlatform()) {
-    if (timestamp <= Date.now() || (await getReminderPermission()) !== "granted") {
+    if (
+      timestamp <= Date.now() ||
+      (await getReminderPermission()) !== "granted"
+    ) {
       return;
     }
     await LocalNotifications.schedule({
       notifications: [
         {
           id,
-          title: "Waktunya membaca",
-          body: "Buka Manuknest untuk melihat link pengingatmu.",
+          title: copy.notificationTitle,
+          body: copy.notificationBody,
           schedule: { at: new Date(timestamp) },
         },
       ],
@@ -73,8 +83,8 @@ export async function scheduleReminderNotification(
     }
     browserTimers.delete(id);
     if (window.localStorage.getItem(notificationKey)) return;
-    const notification = new Notification("Waktunya membaca", {
-      body: "Buka Manuknest untuk melihat link pengingatmu.",
+    const notification = new Notification(copy.notificationTitle, {
+      body: copy.notificationBody,
     });
     notification.onclick = () => window.focus();
     window.localStorage.setItem(notificationKey, "1");

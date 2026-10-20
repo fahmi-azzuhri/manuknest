@@ -3,6 +3,7 @@ import { CalendarDays, Pencil, UserRound } from "lucide-react";
 import ProfileMusicPlayer from "../ProfileMusicPlayer";
 import type { ProfileStats, User } from "../../lib/api";
 import { formatAccountDate } from "./types";
+import { getTranslations, localizeMessage, type Locale } from "../../lib/i18n";
 
 type ProfilePageProps = {
   user: User;
@@ -21,13 +22,18 @@ type ProfilePageProps = {
   onUsernameChange: (value: string) => void;
   onMusicUrlChange: (value: string) => void;
   onCancelEdit: () => void;
+  locale: Locale;
 };
 
+type ProfileCopy = ReturnType<typeof getTranslations>;
+
 function ProfileHeader({
+  copy,
   username,
   onEdit,
   editOpen,
 }: {
+  copy: ProfileCopy;
   username: string;
   onEdit: () => void;
   editOpen: boolean;
@@ -38,7 +44,7 @@ function ProfileHeader({
         {username[0]?.toUpperCase() ?? <UserRound size={34} />}
       </div>
       <h1 id="profile-title">
-        {username ? `@${username}` : "Atur username profil"}
+        {username ? `@${username}` : copy.setProfileUsername}
       </h1>
       <button
         className="profile-edit-button"
@@ -48,13 +54,14 @@ function ProfileHeader({
         aria-controls="profile-edit-form"
       >
         <Pencil size={16} />
-        Edit profil
+        {copy.editProfile}
       </button>
     </header>
   );
 }
 
 function ProfileEditForm({
+  copy,
   username,
   musicUrl,
   saving,
@@ -64,6 +71,7 @@ function ProfileEditForm({
   onMusicUrlChange,
   onCancel,
 }: {
+  copy: ProfileCopy;
   username: string;
   musicUrl: string;
   saving: boolean;
@@ -79,9 +87,9 @@ function ProfileEditForm({
       id="profile-edit-form"
       onSubmit={onSubmit}
     >
-      <h2>Edit profil</h2>
+      <h2>{copy.editProfile}</h2>
       <label className="field-label">
-        Username
+        {copy.username}
         <input
           type="text"
           autoComplete="username"
@@ -91,23 +99,19 @@ function ProfileEditForm({
           pattern="[A-Za-z0-9][A-Za-z0-9_]{2,23}"
           value={username}
           onChange={(event) => onUsernameChange(event.target.value)}
+          placeholder={copy.usernamePlaceholder}
         />
-        <small>
-          Username harus unik. Gunakan 3-24 huruf, angka, atau garis bawah.
-        </small>
+        <small>{copy.usernameHint}</small>
       </label>
       <label className="field-label">
-        Lagu YouTube Music
+        {copy.youtubeMusic}
         <input
           type="url"
           value={musicUrl}
           onChange={(event) => onMusicUrlChange(event.target.value)}
           placeholder="https://music.youtube.com/watch?v=..."
         />
-        <small>
-          Opsional. Tempel link satu lagu; kosongkan untuk menghapus pemutar
-          musik.
-        </small>
+        <small>{copy.musicHint}</small>
       </label>
       {error && (
         <p className="auth-error" role="alert">
@@ -120,10 +124,10 @@ function ProfileEditForm({
           type="button"
           onClick={onCancel}
         >
-          Batal
+          {copy.cancel}
         </button>
         <button className="save-button" type="submit" disabled={saving}>
-          {saving ? "Menyimpan..." : "Simpan profil"}
+          {saving ? copy.savingProfile : copy.saveProfile}
         </button>
       </div>
     </form>
@@ -131,29 +135,32 @@ function ProfileEditForm({
 }
 
 function ProfileStatistics({
+  copy,
   stats,
 }: {
+  copy: ProfileCopy;
   stats: ProfileStats;
 }) {
   return (
-    <dl className="profile-stats" aria-label="Statistik profil">
+    <dl className="profile-stats" aria-label={copy.profileStats}>
       <div>
-        <dt>Dibagikan</dt>
+        <dt>{copy.sharedCount}</dt>
         <dd>{stats.sharedLinks}</dd>
       </div>
       <div>
-        <dt>Menyukai</dt>
+        <dt>{copy.likesGiven}</dt>
         <dd>{stats.likesGiven}</dd>
       </div>
       <div>
-        <dt>Disukai</dt>
+        <dt>{copy.likesReceived}</dt>
         <dd>{stats.likesReceived}</dd>
       </div>
     </dl>
   );
 }
 
-function ProfileDetails({ user }: { user: User }) {
+function ProfileDetails({ user, locale }: { user: User; locale: Locale }) {
+  const copy = getTranslations(locale);
   return (
     <dl className="profile-details">
       <div>
@@ -162,24 +169,28 @@ function ProfileDetails({ user }: { user: User }) {
       </div>
       <div>
         <dt>
-          <CalendarDays size={15} /> Bergabung
+          <CalendarDays size={15} /> {copy.joined}
         </dt>
-        <dd>{formatAccountDate(user.createdAt)}</dd>
+        <dd>{formatAccountDate(user.createdAt, locale)}</dd>
       </div>
     </dl>
   );
 }
 
-function ProfileMusic({ videoId }: { videoId: string }) {
+function ProfileMusic({
+  videoId,
+  locale,
+}: {
+  videoId: string;
+  locale: Locale;
+}) {
+  const copy = getTranslations(locale);
   return (
     <section className="profile-music" aria-labelledby="music-title">
       {videoId ? (
-        <ProfileMusicPlayer videoId={videoId} />
+        <ProfileMusicPlayer videoId={videoId} locale={locale} />
       ) : (
-        <p>
-          Belum ada lagu profil. Tambahkan satu link lagu YouTube Music lewat
-          Edit profil.
-        </p>
+        <p>{copy.noProfileSong}</p>
       )}
     </section>
   );
@@ -202,25 +213,30 @@ export default function ProfilePage({
   onUsernameChange,
   onMusicUrlChange,
   onCancelEdit,
+  locale,
 }: ProfilePageProps) {
+  const copy = getTranslations(locale);
+
   return (
     <section className="profile-page" aria-labelledby="profile-title">
       <ProfileHeader
+        copy={copy}
         username={user.username}
         onEdit={onEdit}
         editOpen={editOpen}
       />
       {saveNotice && (
         <p className="profile-feedback" role="status">
-          {saveNotice}
+          {localizeMessage(saveNotice, locale)}
         </p>
       )}
       {editOpen && (
         <ProfileEditForm
+          copy={copy}
           username={username}
           musicUrl={musicUrl}
           saving={saving}
-          error={saveError}
+          error={localizeMessage(saveError, locale)}
           onSubmit={onSubmit}
           onUsernameChange={onUsernameChange}
           onMusicUrlChange={onMusicUrlChange}
@@ -229,24 +245,24 @@ export default function ProfilePage({
       )}
       {loading && (
         <div className="profile-state" role="status">
-          Memuat statistik profil...
+          {copy.loadingProfileStats}
         </div>
       )}
       {error && (
         <div className="profile-state error" role="alert">
-          <p>{error}</p>
+          <p>{localizeMessage(error, locale)}</p>
           <button
             className="profile-edit-button"
             type="button"
             onClick={reload}
           >
-            Coba lagi
+            {copy.retry}
           </button>
         </div>
       )}
-      {stats && !error && <ProfileStatistics stats={stats} />}
-      <ProfileDetails user={user} />
-      <ProfileMusic videoId={user.musicVideoId} />
+      {stats && !error && <ProfileStatistics copy={copy} stats={stats} />}
+      <ProfileDetails user={user} locale={locale} />
+      <ProfileMusic videoId={user.musicVideoId} locale={locale} />
     </section>
   );
 }

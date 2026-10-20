@@ -1,4 +1,9 @@
 import { useEffect, useRef } from "react";
+import {
+  getTranslations,
+  translateCategory,
+  type Locale,
+} from "../../lib/i18n";
 
 type FilterDrag = {
   pointerId: number;
@@ -14,16 +19,19 @@ type CategoryFiltersProps = {
   categories: string[];
   activeCategory: string;
   onCategoryChange: (category: string) => void;
+  locale: Locale;
 };
 
 export default function CategoryFilters({
   categories,
   activeCategory,
   onCategoryChange,
+  locale,
 }: CategoryFiltersProps) {
   const drag = useRef<FilterDrag | null>(null);
   const inertiaFrame = useRef<number | null>(null);
   const suppressClick = useRef(false);
+  const copy = getTranslations(locale);
 
   useEffect(
     () => () => {
@@ -37,7 +45,7 @@ export default function CategoryFilters({
   return (
     <div
       className="filter-chips"
-      aria-label="Filter kategori"
+      aria-label={copy.filterCategory}
       onPointerDown={(event) => {
         if (!event.isPrimary || event.button !== 0) return;
         if (inertiaFrame.current !== null) {
@@ -65,12 +73,10 @@ export default function CategoryFilters({
         if (!currentDrag.moved) return;
 
         const elapsed = Math.max(event.timeStamp - currentDrag.lastTime, 1);
-        currentDrag.velocity =
-          -(event.clientX - currentDrag.lastX) / elapsed;
+        currentDrag.velocity = -(event.clientX - currentDrag.lastX) / elapsed;
         currentDrag.lastX = event.clientX;
         currentDrag.lastTime = event.timeStamp;
-        event.currentTarget.scrollLeft =
-          currentDrag.startScrollLeft - distance;
+        event.currentTarget.scrollLeft = currentDrag.startScrollLeft - distance;
       }}
       onPointerUp={(event) => {
         const currentDrag = drag.current;
@@ -105,13 +111,14 @@ export default function CategoryFilters({
         suppressClick.current = false;
       }}
     >
+      <div className="filter-label">{copy.filterCategory}</div>
       {categories.map((category) => (
         <button
           key={category}
           className={activeCategory === category ? "chip active" : "chip"}
           onClick={() => onCategoryChange(category)}
         >
-          {category}
+          {translateCategory(category, locale)}
         </button>
       ))}
     </div>

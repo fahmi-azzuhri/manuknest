@@ -38,10 +38,13 @@ export const categoryOptions = [
   "Other",
 ];
 
-export function formatShortDate(value: string): string {
+export function formatShortDate(
+  value: string,
+  locale: "id" | "en" = "id",
+): string {
   const date = new Date(value);
   if (!value || Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("id-ID", {
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
     day: "numeric",
     month: "short",
   }).format(date);
@@ -55,8 +58,15 @@ export function hostOf(url: string): string {
   }
 }
 
-export function formatAccountDate(value: string): string {
+export function formatAccountDate(
+  value: string,
+  locale: "id" | "en" = "id",
+): string {
   const date = new Date(value);
-  if (!value || Number.isNaN(date.getTime())) return "Tanggal tidak tersedia";
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(date);
+  if (!value || Number.isNaN(date.getTime())) {
+    return locale === "id" ? "Tanggal tidak tersedia" : "Date unavailable";
+  }
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+    dateStyle: "long",
+  }).format(date);
 }

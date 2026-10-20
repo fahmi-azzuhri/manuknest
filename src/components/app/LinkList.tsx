@@ -6,6 +6,12 @@ import type { PopularLink } from "../../lib/api";
 import type { LinkVaultData } from "../../lib/vault";
 import type { SavedLink } from "./types";
 import { formatShortDate, hostOf, tones } from "./types";
+import {
+  getTranslations,
+  localizeMessage,
+  translateCategory,
+  type Locale,
+} from "../../lib/i18n";
 
 type LinkListProps = {
   isHome: boolean;
@@ -33,6 +39,7 @@ type LinkListProps = {
   onSnoozeReminder: (link: SavedLink) => void;
   onDeleteLink: (link: SavedLink) => void;
   onResetSearch: () => void;
+  locale: Locale;
 };
 
 function LinkListState({
@@ -52,7 +59,9 @@ function LinkListState({
     <div className="empty-state" role={role}>
       <h3>{title}</h3>
       {children}
-      {actionLabel && onAction && <button onClick={onAction}>{actionLabel}</button>}
+      {actionLabel && onAction && (
+        <button onClick={onAction}>{actionLabel}</button>
+      )}
     </div>
   );
 }
@@ -107,16 +116,20 @@ function SavedLinkIcon({ link }: { link: SavedLink }) {
 }
 
 function ExploreLinkCards({
+  locale,
   links,
   likingPopularID,
   onOpenProfile,
   onToggleLike,
 }: {
+  locale: Locale;
   links: PopularLink[];
   likingPopularID: number | null;
   onOpenProfile: (username: string) => void;
   onToggleLike: (link: PopularLink) => void;
 }) {
+  const copy = getTranslations(locale);
+
   return (
     <CardStack
       items={links.map((link) => ({
@@ -127,7 +140,7 @@ function ExploreLinkCards({
         subtitle: hostOf(link.url),
         byline: link.username ? (
           <>
-            Dibagikan oleh{" "}
+            {copy.exploreSharedBy}{" "}
             <button
               className="shared-author-link"
               type="button"
@@ -137,26 +150,23 @@ function ExploreLinkCards({
             </button>
           </>
         ) : (
-          "Dibagikan oleh pengguna Manuknest"
+          copy.sharedByManuknest
         ),
         aside: (
           <button
             className={link.likedByMe ? "popular-like liked" : "popular-like"}
             aria-label={
               link.isOwner
-                ? `Link milikmu, ${link.likeCount} suka`
+                ? copy.ownLink(link.likeCount)
                 : link.likedByMe
-                  ? `Hapus sukamu, ${link.likeCount} suka`
-                  : `Sukai link, ${link.likeCount} suka`
+                ? copy.removeLike(link.likeCount)
+                : copy.likeLink(link.likeCount)
             }
             aria-pressed={link.likedByMe}
             disabled={link.isOwner || likingPopularID === link.id}
             onClick={() => onToggleLike(link)}
           >
-            <Heart
-              size={17}
-              fill={link.likedByMe ? "currentColor" : "none"}
-            />
+            <Heart size={17} fill={link.likedByMe ? "currentColor" : "none"} />
             <span>{link.likeCount}</span>
           </button>
         ),
@@ -174,12 +184,14 @@ function ExploreLinkCards({
           <>
             {link.tags.map((tag) => (
               <span className="stack-pill soft" key={tag}>
-                {tag}
+                {translateCategory(tag, locale)}
               </span>
             ))}
-            <span className="stack-pill">{formatShortDate(link.createdAt)}</span>
+            <span className="stack-pill">
+              {formatShortDate(link.createdAt, locale)}
+            </span>
             {link.isOwner && (
-              <span className="stack-pill soft">Link ini kamu bagikan</span>
+              <span className="stack-pill soft">{copy.ownSharedLink}</span>
             )}
           </>
         ),
@@ -189,12 +201,14 @@ function ExploreLinkCards({
 }
 
 function SavedLinkCards({
+  locale,
   links,
   deletingLinkID,
   onReadingStatusChange,
   onSnoozeReminder,
   onDelete,
 }: {
+  locale: Locale;
   links: SavedLink[];
   deletingLinkID: number | null;
   onReadingStatusChange: (
@@ -204,6 +218,8 @@ function SavedLinkCards({
   onSnoozeReminder: (link: SavedLink) => void;
   onDelete: (link: SavedLink) => void;
 }) {
+  const copy = getTranslations(locale);
+
   return (
     <CardStack
       items={links.map((link) => ({
@@ -219,7 +235,7 @@ function SavedLinkCards({
             href={link.href}
             target="_blank"
             rel="noreferrer"
-            aria-label={`Buka ${link.title}`}
+            aria-label={copy.openLink(link.title)}
           >
             <ExternalLink size={16} />
           </a>
@@ -241,11 +257,15 @@ function SavedLinkCards({
         ),
         footer: (
           <>
-            <span className="stack-pill">{formatShortDate(link.createdAt)}</span>
-            <span className="stack-pill soft">{link.category}</span>
+            <span className="stack-pill">
+              {formatShortDate(link.createdAt, locale)}
+            </span>
+            <span className="stack-pill soft">
+              {translateCategory(link.category, locale)}
+            </span>
             <label className="reading-status-control">
               <span className="visually-hidden">
-                Status baca untuk {link.title}
+                {copy.readStatus(link.title)}
               </span>
               <select
                 value={link.vault.readStatus}
@@ -256,8 +276,8 @@ function SavedLinkCards({
                   }
                 }}
               >
-                <option value="unread">Belum dilihat</option>
-                <option value="done">Selesai</option>
+                <option value="unread">{copy.unread}</option>
+                <option value="done">{copy.done}</option>
               </select>
             </label>
             {link.vault.reminderAt && link.vault.readStatus !== "done" && (
@@ -269,25 +289,28 @@ function SavedLinkCards({
                       : "stack-pill reminder-date"
                   }
                 >
-                  Pengingat {formatShortDate(link.vault.reminderAt)}
+                  {copy.readingReminder}{" "}
+                  {copy.reminder(
+                    formatShortDate(link.vault.reminderAt, locale),
+                  )}
                 </span>
                 <button
                   className="reminder-snooze"
                   type="button"
                   onClick={() => onSnoozeReminder(link)}
                 >
-                  Tunda 1 hari
+                  {copy.snooze}
                 </button>
               </>
             )}
             {link.shared && (
-              <span className="stack-pill soft">Dibagikan</span>
+              <span className="stack-pill soft">{copy.shared}</span>
             )}
             <div className="stack-actions">
               <button
                 className="stack-round danger"
                 type="button"
-                aria-label={`Hapus ${link.title}`}
+                aria-label={copy.deleteLinkLabel(link.title)}
                 disabled={deletingLinkID !== null}
                 onClick={() => onDelete(link)}
               >
@@ -324,32 +347,35 @@ export default function LinkList({
   onSnoozeReminder,
   onDeleteLink,
   onResetSearch,
+  locale,
 }: LinkListProps) {
+  const copy = getTranslations(locale);
+
   return (
     <div className="link-list">
       {isPopularView && popularLoading && (
         <div className="empty-state" role="status">
-          Memuat link Explore...
+          {copy.loadingExplore}
         </div>
       )}
       {isPopularView && popularError && (
         <LinkListState
           role="alert"
-          title="Link Explore belum bisa dimuat."
-          actionLabel="Coba lagi"
+          title={localizeMessage("Link Explore belum bisa dimuat.", locale)}
+          actionLabel={copy.retry}
           onAction={onRetryPopular}
         >
-          <p>{popularError}</p>
+          <p>{localizeMessage(popularError, locale)}</p>
         </LinkListState>
       )}
       {!isPopularView && loadError && (
         <LinkListState
           role="alert"
-          title="Link belum bisa dimuat."
-          actionLabel="Coba lagi"
+          title={copy.linkLoadFailed}
+          actionLabel={copy.retry}
           onAction={onRetryLinks}
         >
-          <p>{loadError}</p>
+          <p>{localizeMessage(loadError, locale)}</p>
         </LinkListState>
       )}
       {isPopularView &&
@@ -357,14 +383,11 @@ export default function LinkList({
         !popularError &&
         popularLinks.length === 0 && (
           <LinkListState
-            title="Belum ada link yang dibagikan."
-            actionLabel="Kembali ke Home"
+            title={copy.noSharedLinks}
+            actionLabel={copy.backHome}
             onAction={onOpenHome}
           >
-            <p>
-              Link yang dibagikan akan muncul di sini. Pemiliknya memilih untuk
-              menampilkan URL dan judulnya.
-            </p>
+            <p>{copy.sharedLinksHint}</p>
           </LinkListState>
         )}
       {isPopularView &&
@@ -372,6 +395,7 @@ export default function LinkList({
         !popularError &&
         popularLinks.length > 0 && (
           <ExploreLinkCards
+            locale={locale}
             links={popularLinks}
             likingPopularID={likingPopularID}
             onOpenProfile={onOpenSharedProfile}
@@ -380,6 +404,7 @@ export default function LinkList({
         )}
       {!isPopularView && displayedLinks.length > 0 && (
         <SavedLinkCards
+          locale={locale}
           links={displayedLinks}
           deletingLinkID={deletingLinkID}
           onReadingStatusChange={onReadingStatusChange}
@@ -392,22 +417,20 @@ export default function LinkList({
         links.length > 0 &&
         !loadError && (
           <LinkListState
-            title="Belum ketemu, nih."
-            actionLabel="Reset pencarian"
-            onAction={onResetSearch}
+            title={copy.noResults}
+            actionLabel={copy.retry}
+            onAction={onRetryPopular}
           >
-            <p>Coba kata kunci lain atau pilih kategori berbeda.</p>
+            <p>{copy.searchHint}</p>
           </LinkListState>
         )}
       {!isPopularView && links.length === 0 && !loadError && (
         <LinkListState
-          title={isSavedView ? "Belum ada link tersimpan." : "Belum ada link terbaru."}
-          actionLabel="Simpan link pertama"
+          title={isSavedView ? copy.noSavedLinks : copy.noRecentLinks}
+          actionLabel={copy.saveFirstLink}
           onAction={onOpenAdd}
         >
-          <p>
-            Tempel URL, lalu pilih kategori dan tambahkan catatan kalau perlu.
-          </p>
+          <p>{copy.saveFirstHint}</p>
         </LinkListState>
       )}
       {isHome && links.length > 3 && (
@@ -415,7 +438,7 @@ export default function LinkList({
           className="text-button recent-links-more"
           onClick={onOpenArchive}
         >
-          Buka semua {links.length} link
+          {copy.openAllLinks(links.length)}
         </button>
       )}
     </div>
