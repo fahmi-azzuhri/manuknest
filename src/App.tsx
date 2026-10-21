@@ -42,6 +42,13 @@ import {
   type LinkVaultData,
 } from "./lib/vault";
 import {
+  decryptLegacyLink,
+  deriveLegacyVaultKey,
+  isLegacyEncryptedLink,
+  verifyLegacyVaultKey,
+  type LegacyVaultKeys,
+} from "./lib/legacyVault";
+import {
   initialLocale,
   getTranslations,
   localizeMessage,
@@ -51,11 +58,16 @@ import {
 
 const sessionKey = "tumpuk.session";
 
-type AuthResponse = AuthSession;
+type AuthResponse = AuthSession & {
+  encryptionSalt?: string;
+  encryptionCheck?: string;
+};
 type Theme = "light" | "dark";
 type ThemeTransition = {
   theme: Theme;
 };
+
+class LegacyVaultLoginRequired extends Error {}
 
 const THEME_SWAP_MS = 1150;
 
@@ -139,6 +151,8 @@ export default function App() {
   const [themeTransition, setThemeTransition] =
     useState<ThemeTransition | null>(null);
   const [session, setSession] = useState<AuthSession | null>(readSession);
+  const legacyVaultKeys = useRef<LegacyVaultKeys | null>(null);
+  const legacyVaultError = useRef<string | null>(null);
   const [links, setLinks] = useState<SavedLink[]>([]);
   const [dataStatus, setDataStatus] = useState("");
   const [popularLinks, setPopularLinks] = useState<PopularLink[]>([]);
@@ -309,7 +323,52 @@ export default function App() {
         const decodedLinks: SavedLink[] = [];
         for (const savedLink of savedLinks) {
           if (savedLink.ciphertext) {
-            const vault = await decryptLink(savedLink.ciphertext);
+            let vault: LinkVaultData;
+            if (isLegacyEncryptedLink(savedLink.ciphertext)) {
+              const keys = legacyVaultKeys.current;
+              if (!keys) {
+                throw new LegacyVaultLoginRequired(
+                  legacyVaultError.current ?? copy.vaultLoginRequired,
+                );
+              }
+              let legacyVault: Awaited<
+                ReturnType<typeof decryptLegacyLink>
+              >;
+              try {
+                legacyVault = await decryptLegacyLink(
+                  savedLink.ciphertext,
+                  savedLink.urlHash,
+                  keys,
+                );
+              } catch {
+                throw new Error(copy.vaultKeyMismatch);
+              }
+              vault = {
+                ...legacyVault,
+                previewImageUrl: legacyVault.previewImageUrl ?? "",
+                readStatus:
+                  legacyVault.readStatus === "done" ? "done" : "unread",
+              };
+              const ciphertext = await encryptLink(vault);
+              await request<{ link: LinkItem }>(
+                `/api/links/${savedLink.id}`,
+                {
+                  method: "PATCH",
+                  token,
+                  body: { urlHash: savedLink.urlHash, ciphertext },
+                },
+              );
+            } else {
+              try {
+                vault = await decryptLink(savedLink.ciphertext);
+              } catch (error) {
+                throw new Error(
+                  error instanceof Error
+                    ? error.message
+                    : copy.vaultSettingsIncomplete,
+                );
+              }
+            }
             decodedLinks.push(
               toSavedLink(
                 savedLink.id,
@@ -355,12 +414,20 @@ export default function App() {
           );
         }
         if (active) {
+          legacyVaultKeys.current = null;
+          legacyVaultError.current = null;
           setLinks(decodedLinks);
           setLoadError("");
         }
       } catch (error) {
         if (!active) return;
-        if (error instanceof ApiError && error.status === 401) {
+        if (error instanceof LegacyVaultLoginRequired) {
+          window.sessionStorage.removeItem(sessionKey);
+          legacyVaultKeys.current = null;
+          legacyVaultError.current = null;
+          setSession(null);
+          setAuthError(error.message);
+        } else if (error instanceof ApiError && error.status === 401) {
           window.sessionStorage.removeItem(sessionKey);
           setSession(null);
           setAuthError(error.message);
@@ -428,8 +495,33 @@ export default function App() {
               : { email: authEmail, password: authPassword },
         },
       );
-      window.sessionStorage.setItem(sessionKey, JSON.stringify(result));
-      setSession(result);
+      legacyVaultKeys.current = null;
+      legacyVaultError.current = null;
+      if (result.encryptionSalt || result.encryptionCheck) {
+        if (!result.encryptionSalt || !result.encryptionCheck) {
+          legacyVaultError.current = copy.vaultSettingsIncomplete;
+        } else {
+          try {
+            const keys = await deriveLegacyVaultKey(
+              authPassword,
+              result.encryptionSalt,
+            );
+            if (await verifyLegacyVaultKey(result.encryptionCheck, keys)) {
+              legacyVaultKeys.current = keys;
+            } else {
+              legacyVaultError.current = copy.vaultKeyMismatch;
+            }
+          } catch {
+            legacyVaultError.current = copy.vaultSettingsIncomplete;
+          }
+        }
+      }
+      const authSession: AuthSession = {
+        token: result.token,
+        user: result.user,
+      };
+      window.sessionStorage.setItem(sessionKey, JSON.stringify(authSession));
+      setSession(authSession);
       setAuthUsername("");
       setAuthMusicUrl("");
       setAuthPassword("");
@@ -449,6 +541,8 @@ export default function App() {
       console.error("Could not cancel reminders before signing out.", error);
     }
     window.sessionStorage.removeItem(sessionKey);
+    legacyVaultKeys.current = null;
+    legacyVaultError.current = null;
     setSession(null);
     setLinks([]);
     setAuthError("");

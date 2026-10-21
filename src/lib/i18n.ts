@@ -284,6 +284,8 @@ const id = {
   apiResponse: (status: number) =>
     `Server mengembalikan respons ${status}. Laporkan ke Developer!.`,
   legacyLinkIncomplete: "Ada link lama yang datanya tidak lengkap.",
+  vaultLoginRequired:
+    "Masuk lagi dengan kata sandi akun untuk memulihkan link lama.",
   vaultKeyMismatch: "Kunci enkripsi arsip tidak cocok dengan akun ini.",
   vaultSettingsIncomplete:
     "Pengaturan enkripsi akun belum lengkap. Hubungi admin.",
@@ -524,6 +526,8 @@ const en = {
   apiResponse: (status: number) =>
     `Server returned response ${status}. Contact the app administrator.`,
   legacyLinkIncomplete: "An older link is missing required data.",
+  vaultLoginRequired:
+    "Sign in again with your account password to restore older links.",
   vaultKeyMismatch: "The archive encryption key doesn't match this account.",
   vaultSettingsIncomplete:
     "Account encryption settings are incomplete. Contact an administrator.",

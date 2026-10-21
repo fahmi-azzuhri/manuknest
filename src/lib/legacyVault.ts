@@ -2,6 +2,15 @@ export type LegacyVaultKeys = {
   encryption: CryptoKey;
 };
 
+export function isLegacyEncryptedLink(ciphertext: string): boolean {
+  try {
+    const envelope = decodeBase64(ciphertext);
+    return envelope.length >= 29 && envelope[0] === 1;
+  } catch {
+    return false;
+  }
+}
+
 export type LegacyLinkData = {
   url: string;
   title: string;
