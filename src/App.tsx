@@ -26,9 +26,7 @@ import {
   type PopularLink,
   type User,
 } from "./lib/api";
-import { Capacitor } from "@capacitor/core";
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { Share } from "@capacitor/share";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
   cancelAllReminderNotifications,
   cancelReminderNotification,
@@ -65,12 +63,20 @@ type AuthResponse = AuthSession & {
   encryptionSalt?: string;
   encryptionCheck?: string;
 };
+type BookmarkExportPlugin = {
+  saveFile(options: {
+    fileName: string;
+    content: string;
+  }): Promise<{ saved: boolean }>;
+};
 type Theme = "light" | "dark";
 type ThemeTransition = {
   theme: Theme;
 };
 
 class LegacyVaultLoginRequired extends Error {}
+
+const BookmarkExport = registerPlugin<BookmarkExportPlugin>("BookmarkExport");
 
 const THEME_SWAP_MS = 1150;
 
@@ -927,19 +933,11 @@ export default function App() {
     );
     if (Capacitor.isNativePlatform()) {
       try {
-        const { uri } = await Filesystem.writeFile({
-          path: "manuknest-bookmarks.json",
-          data: json,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
+        const result = await BookmarkExport.saveFile({
+          fileName: "manuknest-bookmarks.json",
+          content: json,
         });
-        await Share.share({
-          title: copy.bookmarkDataTitle,
-          text: copy.bookmarkExportDescription,
-          files: [uri],
-          dialogTitle: copy.bookmarkExportAction,
-        });
-        showNotice(copy.bookmarksExported);
+        if (result.saved) showNotice(copy.bookmarksExported);
       } catch (error) {
         showNotice(
           error instanceof Error

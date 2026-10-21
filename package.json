@@ -10,16 +10,13 @@
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "assets:android": "node scripts/generate-android-icon.mjs && npx @capacitor/assets generate --android --iconBackgroundColor \"#F4F0E7\"",
-  "build:apk": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleDebug",
-"build:apk:release": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleRelease"
-
+    "build:apk": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleDebug",
+    "build:apk:release": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/core": "^8.5.3",
-    "@capacitor/filesystem": "^8.0.0",
     "@capacitor/local-notifications": "^8.3.1",
-    "@capacitor/share": "^8.0.0",
     "lucide-react": "^1.55.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
