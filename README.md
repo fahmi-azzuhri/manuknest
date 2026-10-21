@@ -11,7 +11,7 @@ Manuknest is a personal archive for saving links and finding them again. This fo
 - Show page-provided Open Graph thumbnails, favicons, and domains on saved links. YouTube titles and thumbnails use oEmbed when page metadata is incomplete.
 - Set private 1-, 7-, or 30-day reading reminders, snooze them by one day, and mark links unread or done. Marking a link done removes its reminder.
 - Switch between Indonesian and English, and choose light or dark themes with a full-screen sun/moon transition. The transition respects reduced-motion preferences.
-- Export saved bookmarks to a JSON file and import them later. Duplicate URLs in imported data are skipped.
+- Export saved bookmarks to a JSON file and import them later. In the Android app, export opens the system "Save to" dialog so you can choose where to store the file. In a browser, export downloads the file directly. Duplicate URLs in imported data are skipped.
 - Share selected links and their selected tags in Explore, where signed-in users can like them and visit the sharer's profile. Content-safety checks use the link URL and page or entered title to keep detected content private.
 - View a profile with the account's shared-link and like counts, username, and optional YouTube Music player.
 - Use the same frontend in a browser or as the Manuknest Android app.
@@ -19,7 +19,7 @@ Manuknest is a personal archive for saving links and finding them again. This fo
 
 Saved link records are sent to the API without browser-side encryption. Fetching page metadata and suggesting smart tags are separate requests: the browser sends the URL to the metadata API and sends the URL, title, and note to the tag API in plaintext. The tag API forwards them to Gemini when configured. Links a user explicitly shares expose their selected URL, title, and tags to signed-in users; notes and reading status remain private.
 
-The profile page includes bookmark export and import. Export creates a JSON file containing saved bookmark data. Import skips duplicate URLs and keeps existing bookmarks unchanged.
+The profile page includes bookmark export and import. Export creates a JSON file containing saved bookmark data. On Android, choose a destination in the system "Save to" dialog. Import skips duplicate URLs and keeps existing bookmarks unchanged.
 
 Before sharing, the app checks the URL and available page or entered title for known content-safety terms and domains. Detected links can still be saved privately, but the app disables Explore sharing and the API prevents matching links from being published. This is a keyword and domain heuristic, not a complete content classifier, so it can miss links. Links already shared before this check was added are not changed automatically.
 
@@ -117,5 +117,6 @@ npm run cap:open
   shared profile, and link-card stack.
 - `src/lib/api.ts` defines frontend API requests and response types.
 - `src/lib/vault.ts` handles saved link data and URL lookup hashes.
+- `android/app/src/main/java/` contains native Android integrations, including the bookmark save dialog.
 - `public/tiko/` contains the Manuknest mascot assets.
 - `android/` contains the native Android project managed by Capacitor.
