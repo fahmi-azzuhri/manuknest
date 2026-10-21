@@ -141,6 +141,7 @@ export default function App() {
     useState<ThemeTransition | null>(null);
   const [session, setSession] = useState<AuthSession | null>(readSession);
   const [links, setLinks] = useState<SavedLink[]>([]);
+  const [dataStatus, setDataStatus] = useState("");
   const [popularLinks, setPopularLinks] = useState<PopularLink[]>([]);
   const [popularLoading, setPopularLoading] = useState(false);
   const [popularError, setPopularError] = useState("");
@@ -922,6 +923,54 @@ export default function App() {
     }
   }
 
+  function exportBookmarks() {
+    const blob = new Blob([JSON.stringify(links.map((link) => link.vault), null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "tumpuk-bookmarks.json";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    setDataStatus(copy.bookmarksExported);
+  }
+
+  async function importBookmarks(file: File) {
+    if (!session) return;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!Array.isArray(parsed)) throw new Error("Invalid JSON");
+      const known = new Set(links.map((link) => link.urlHash));
+      let added = 0;
+      let skipped = 0;
+      let invalid = 0;
+      for (const item of parsed) {
+        if (!item || typeof item !== "object" || !("url" in item) || typeof item.url !== "string") { invalid++; continue; }
+        let normalized: Awaited<ReturnType<typeof normalizeAndHashURL>>;
+        try { normalized = await normalizeAndHashURL(item.url); } catch { invalid++; continue; }
+        if (known.has(normalized.urlHash)) { skipped++; continue; }
+        const data = item as Partial<LinkVaultData>;
+        const vault: LinkVaultData = {
+          url: normalized.url,
+          title: typeof data.title === "string" ? data.title : normalized.domain,
+          description: typeof data.description === "string" ? data.description : "",
+          domain: normalized.domain,
+          faviconUrl: typeof data.faviconUrl === "string" ? data.faviconUrl : "",
+          previewImageUrl: typeof data.previewImageUrl === "string" ? data.previewImageUrl : "",
+          readStatus: data.readStatus === "done" ? "done" : "unread",
+          ...(typeof data.reminderAt === "string" && Number.isFinite(Date.parse(data.reminderAt)) ? { reminderAt: data.reminderAt } : {}),
+          metadataStatus: data.metadataStatus === "ready" || data.metadataStatus === "pending" ? data.metadataStatus : "unavailable",
+          tags: Array.isArray(data.tags) ? data.tags.filter((tag): tag is string => typeof tag === "string") : [],
+          collections: Array.isArray(data.collections) ? data.collections.filter((collection): collection is string => typeof collection === "string") : [],
+        };
+        const result = await request<{ link: LinkItem }>("/api/links", { method: "POST", token: session.token, body: { urlHash: normalized.urlHash, ciphertext: await encryptLink(vault) } });
+        known.add(normalized.urlHash);
+        added++;
+        setLinks((current) => [toSavedLink(result.link.id, normalized.urlHash, vault, result.link.createdAt, result.link.shared), ...current]);
+      }
+      setDataStatus(copy.bookmarksImported(added, skipped, invalid));
+    } catch { setDataStatus(copy.bookmarkImportFailed); }
+  }
+
   async function saveLink() {
     if (!session) return;
     const trimmed = url.trim();
@@ -1286,6 +1335,9 @@ export default function App() {
                 setProfileEditOpen(false);
                 setProfileSaveError("");
               }}
+              dataStatus={dataStatus}
+              onExportData={exportBookmarks}
+              onImportData={(file) => void importBookmarks(file)}
             />
           ) : (
             <>

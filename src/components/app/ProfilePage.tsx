@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import ImportExportSection from "./ImportExportSection";
 import { CalendarDays, Pencil, UserRound } from "lucide-react";
 import ProfileMusicPlayer from "../ProfileMusicPlayer";
 import type { ProfileStats, User } from "../../lib/api";
@@ -23,6 +24,9 @@ type ProfilePageProps = {
   onMusicUrlChange: (value: string) => void;
   onCancelEdit: () => void;
   locale: Locale;
+  dataStatus: string;
+  onExportData: () => void;
+  onImportData: (file: File) => void;
 };
 
 type ProfileCopy = ReturnType<typeof getTranslations>;
@@ -214,6 +218,9 @@ export default function ProfilePage({
   onMusicUrlChange,
   onCancelEdit,
   locale,
+  dataStatus,
+  onExportData,
+  onImportData,
 }: ProfilePageProps) {
   const copy = getTranslations(locale);
 
@@ -263,6 +270,12 @@ export default function ProfilePage({
       {stats && !error && <ProfileStatistics copy={copy} stats={stats} />}
       <ProfileDetails user={user} locale={locale} />
       <ProfileMusic videoId={user.musicVideoId} locale={locale} />
+      <ImportExportSection
+        locale={locale}
+        status={dataStatus}
+        onExport={onExportData}
+        onImport={onImportData}
+      />
     </section>
   );
 }
