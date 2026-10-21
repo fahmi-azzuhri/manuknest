@@ -328,6 +328,7 @@ const id = {
   bookmarkDataTitle: "Data bookmark",
   bookmarkDataDescription:
     "Simpan salinan atau pindahkan bookmark dari perangkat lain.",
+  bookmarkExportFailed: "Bookmark belum bisa diekspor.",
   bookmarkExportTitle: "Unduh salinan",
   bookmarkExportDescription: "Ekspor semua bookmark ke file JSON.",
   bookmarkExportAction: "Ekspor JSON",
@@ -570,6 +571,7 @@ const en = {
   bookmarkDataTitle: "Bookmark data",
   bookmarkDataDescription:
     "Keep a copy or bring bookmarks over from another device.",
+  bookmarkExportFailed: "Bookmarks could not be exported.",
   bookmarkExportTitle: "Download a copy",
   bookmarkExportDescription: "Export every bookmark to a JSON file.",
   bookmarkExportAction: "Export JSON",

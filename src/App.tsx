@@ -26,6 +26,9 @@ import {
   type PopularLink,
   type User,
 } from "./lib/api";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import {
   cancelAllReminderNotifications,
   cancelReminderNotification,
@@ -916,12 +919,43 @@ export default function App() {
     }
   }
 
-  function exportBookmarks() {
-    const blob = new Blob([JSON.stringify(links.map((link) => link.vault), null, 2)], { type: "application/json" });
+  async function exportBookmarks() {
+    const json = JSON.stringify(
+      links.map((link) => link.vault),
+      null,
+      2,
+    );
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { uri } = await Filesystem.writeFile({
+          path: "manuknest-bookmarks.json",
+          data: json,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({
+          title: copy.bookmarkDataTitle,
+          text: copy.bookmarkExportDescription,
+          files: [uri],
+          dialogTitle: copy.bookmarkExportAction,
+        });
+        showNotice(copy.bookmarksExported);
+      } catch (error) {
+        showNotice(
+          error instanceof Error
+            ? `${copy.bookmarkExportFailed}: ${error.message}`
+            : copy.bookmarkExportFailed,
+          true,
+        );
+      }
+      return;
+    }
+
+    const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "tumpuk-bookmarks.json";
+    anchor.download = "manuknest-bookmarks.json";
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     setDataStatus(copy.bookmarksExported);
