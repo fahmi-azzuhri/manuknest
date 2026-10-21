@@ -1,29 +1,16 @@
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import ImportExportSection from "./ImportExportSection";
 import { CalendarDays, Pencil, UserRound } from "lucide-react";
 import ProfileMusicPlayer from "../ProfileMusicPlayer";
-import type { ProfileStats, User } from "../../lib/api";
+import { ApiError, request, type ProfileStats, type User } from "../../lib/api";
 import { formatAccountDate } from "./types";
 import { getTranslations, localizeMessage, type Locale } from "../../lib/i18n";
 
 type ProfilePageProps = {
-  user: User;
-  stats: ProfileStats | null;
-  loading: boolean;
-  error: string;
-  reload: () => void;
-  saveNotice: string;
-  editOpen: boolean;
-  username: string;
-  musicUrl: string;
-  saving: boolean;
-  saveError: string;
-  onEdit: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onUsernameChange: (value: string) => void;
-  onMusicUrlChange: (value: string) => void;
-  onCancelEdit: () => void;
+  token: string;
   locale: Locale;
+  onUserChange: (user: User) => void;
+  onUnauthorized: (message: string) => void;
   dataStatus: string;
   onExportData: () => void;
   onImportData: (file: File) => void;
@@ -201,35 +188,88 @@ function ProfileMusic({
 }
 
 export default function ProfilePage({
-  user,
-  stats,
-  loading,
-  error,
-  reload,
-  saveNotice,
-  editOpen,
-  username,
-  musicUrl,
-  saving,
-  saveError,
-  onEdit,
-  onSubmit,
-  onUsernameChange,
-  onMusicUrlChange,
-  onCancelEdit,
+  token,
   locale,
+  onUserChange,
+  onUnauthorized,
   dataStatus,
   onExportData,
   onImportData,
 }: ProfilePageProps) {
   const copy = getTranslations(locale);
+  const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
+  const [username, setUsername] = useState("");
+  const [musicUrl, setMusicUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveNotice, setSaveNotice] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    Promise.all([
+      request<User>("/api/me", { token }),
+      request<ProfileStats>("/api/me/stats", { token }),
+    ])
+      .then(([nextUser, nextStats]) => {
+        if (!active) return;
+        setUser(nextUser);
+        setStats(nextStats);
+        onUserChange(nextUser);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        if (reason instanceof ApiError && reason.status === 401) onUnauthorized(reason.message);
+        setError(reason instanceof Error ? reason.message : copy.profileLoadFailed);
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [token, reload]);
+
+  function editProfile() {
+    if (!user) return;
+    setUsername(user.username);
+    setMusicUrl(user.musicVideoId ? `https://music.youtube.com/watch?v=${user.musicVideoId}` : "");
+    setSaveError("");
+    setSaveNotice("");
+    setEditOpen(true);
+  }
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      const nextUser = await request<User>("/api/me/profile", {
+        method: "PATCH", token, body: { username, musicUrl },
+      });
+      setUser(nextUser);
+      onUserChange(nextUser);
+      setEditOpen(false);
+      setSaveNotice(copy.profileUpdated);
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 401) onUnauthorized(reason.message);
+      setSaveError(reason instanceof Error ? reason.message : copy.profileNotSaved);
+    } finally { setSaving(false); }
+  }
+
+  if (!user) {
+    return <section className="profile-page" aria-labelledby="profile-title"><div className={`profile-state${error ? " error" : ""}`} role={error ? "alert" : "status"}>{localizeMessage(error || copy.loadingProfileStats, locale)}{error && <button className="profile-edit-button" type="button" onClick={() => setReload((value) => value + 1)}>{copy.retry}</button>}</div></section>;
+  }
 
   return (
     <section className="profile-page" aria-labelledby="profile-title">
       <ProfileHeader
         copy={copy}
         username={user.username}
-        onEdit={onEdit}
+        onEdit={editProfile}
         editOpen={editOpen}
       />
       {saveNotice && (
@@ -244,10 +284,13 @@ export default function ProfilePage({
           musicUrl={musicUrl}
           saving={saving}
           error={localizeMessage(saveError, locale)}
-          onSubmit={onSubmit}
-          onUsernameChange={onUsernameChange}
-          onMusicUrlChange={onMusicUrlChange}
-          onCancel={onCancelEdit}
+          onSubmit={(event) => void saveProfile(event)}
+          onUsernameChange={setUsername}
+          onMusicUrlChange={setMusicUrl}
+          onCancel={() => {
+            setEditOpen(false);
+            setSaveError("");
+          }}
         />
       )}
       {loading && (
@@ -261,7 +304,7 @@ export default function ProfilePage({
           <button
             className="profile-edit-button"
             type="button"
-            onClick={reload}
+            onClick={() => setReload((value) => value + 1)}
           >
             {copy.retry}
           </button>

@@ -24,7 +24,6 @@ import {
   type LinkMetadata,
   type LinkItem,
   type PopularLink,
-  type ProfileStats,
   type User,
 } from "./lib/api";
 import {
@@ -189,16 +188,6 @@ export default function App() {
   const [sharePublic, setSharePublic] = useState(false);
   const [activeNav, setActiveNav] = useState<AppNavigationItem>("Home");
   const [sharedProfileUsername, setSharedProfileUsername] = useState("");
-  const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileError, setProfileError] = useState("");
-  const [profileReload, setProfileReload] = useState(0);
-  const [profileEditOpen, setProfileEditOpen] = useState(false);
-  const [profileEditUsername, setProfileEditUsername] = useState("");
-  const [profileEditMusicUrl, setProfileEditMusicUrl] = useState("");
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileSaveError, setProfileSaveError] = useState("");
-  const [profileSaveNotice, setProfileSaveNotice] = useState("");
   const [clock, setClock] = useState(Date.now());
   const filters = useMemo(
     () => [
@@ -302,14 +291,15 @@ export default function App() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [showAdd]);
 
+  const sessionToken = session?.token;
   useEffect(() => {
-    if (!session) {
+    if (!sessionToken) {
       setLinks([]);
       setIsLoading(false);
       return;
     }
     let active = true;
-    const token = session.token;
+    const token = sessionToken;
     setIsLoading(true);
     setLoadError("");
     async function loadLinks() {
@@ -387,7 +377,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [session, reloadLinks]);
+  }, [sessionToken, reloadLinks]);
 
   useEffect(() => {
     if (!session || activeNav !== "Explore" || sharedProfileUsername) return;
@@ -417,45 +407,6 @@ export default function App() {
       active = false;
     };
   }, [session, activeNav, reloadPopular, sharedProfileUsername]);
-
-  useEffect(() => {
-    if (!session || activeNav !== "Profile") return;
-    let active = true;
-    const token = session.token;
-    setProfileLoading(true);
-    setProfileError("");
-    Promise.all([
-      request<User>("/api/me", { token }),
-      request<ProfileStats>("/api/me/stats", { token }),
-    ])
-      .then(([user, stats]) => {
-        if (!active) return;
-        setProfileStats(stats);
-        setSession((current) => {
-          if (!current) return current;
-          const updated = { ...current, user };
-          window.sessionStorage.setItem(sessionKey, JSON.stringify(updated));
-          return updated;
-        });
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        if (error instanceof ApiError && error.status === 401) {
-          window.sessionStorage.removeItem(sessionKey);
-          setSession(null);
-          setAuthError(error.message);
-        }
-        setProfileError(
-          error instanceof Error ? error.message : copy.profileLoadFailed,
-        );
-      })
-      .finally(() => {
-        if (active) setProfileLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [session?.token, activeNav, profileReload]);
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -835,58 +786,6 @@ export default function App() {
   function openProfile() {
     setSharedProfileUsername("");
     setActiveNav("Profile");
-    setProfileEditOpen(false);
-    setProfileSaveError("");
-    setProfileSaveNotice("");
-  }
-
-  function editProfile() {
-    setProfileEditUsername(session?.user.username ?? "");
-    setProfileEditMusicUrl(
-      session?.user.musicVideoId
-        ? `https://music.youtube.com/watch?v=${session.user.musicVideoId}`
-        : "",
-    );
-    setProfileSaveError("");
-    setProfileSaveNotice("");
-    setProfileEditOpen(true);
-  }
-
-  async function saveProfile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!session || profileSaving) return;
-    setProfileSaving(true);
-    setProfileSaveError("");
-    setProfileSaveNotice("");
-    try {
-      const user = await request<User>("/api/me/profile", {
-        method: "PATCH",
-        token: session.token,
-        body: {
-          username: profileEditUsername,
-          musicUrl: profileEditMusicUrl,
-        },
-      });
-      setSession((current) => {
-        if (!current) return current;
-        const updated = { ...current, user };
-        window.sessionStorage.setItem(sessionKey, JSON.stringify(updated));
-        return updated;
-      });
-      setProfileEditOpen(false);
-      setProfileSaveNotice(copy.profileUpdated);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        window.sessionStorage.removeItem(sessionKey);
-        setSession(null);
-        setAuthError(error.message);
-      }
-      setProfileSaveError(
-        error instanceof Error ? error.message : copy.profileNotSaved,
-      );
-    } finally {
-      setProfileSaving(false);
-    }
   }
 
   async function togglePopularLike(link: PopularLink) {
@@ -1315,25 +1214,20 @@ export default function App() {
             />
           ) : isProfileView ? (
             <ProfilePage
+              token={session.token}
               locale={locale}
-              user={session.user}
-              stats={profileStats}
-              loading={profileLoading}
-              error={profileError}
-              reload={() => setProfileReload((current) => current + 1)}
-              saveNotice={profileSaveNotice}
-              editOpen={profileEditOpen}
-              username={profileEditUsername}
-              musicUrl={profileEditMusicUrl}
-              saving={profileSaving}
-              saveError={profileSaveError}
-              onEdit={editProfile}
-              onSubmit={(event) => void saveProfile(event)}
-              onUsernameChange={setProfileEditUsername}
-              onMusicUrlChange={setProfileEditMusicUrl}
-              onCancelEdit={() => {
-                setProfileEditOpen(false);
-                setProfileSaveError("");
+              onUserChange={(user) => {
+                setSession((current) => {
+                  if (!current) return current;
+                  const updated = { ...current, user };
+                  window.sessionStorage.setItem(sessionKey, JSON.stringify(updated));
+                  return updated;
+                });
+              }}
+              onUnauthorized={(message) => {
+                window.sessionStorage.removeItem(sessionKey);
+                setSession(null);
+                setAuthError(message);
               }}
               dataStatus={dataStatus}
               onExportData={exportBookmarks}
